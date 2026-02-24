@@ -28,12 +28,12 @@ PS.STATIC_AD_TEMPLATES = {
 -- Lockbox tiers ordered by required skill (highest first for ad display)
 ------------------------------------------------------------------------
 local LOCKBOX_TIERS = {
-    { name = "Khorium",    skill = 375 },
-    { name = "Eternium",   skill = 375 },
-    { name = "Felsteel",   skill = 350 },
-    { name = "Adamantite", skill = 325 },
+    { name = "Khorium",    skill = 325 },
+    { name = "Felsteel",   skill = 300 },
+    { name = "Adamantite", skill = 275 },
+    { name = "Eternium",   skill = 225 },
     { name = "Thorium",    skill = 225 },
-    { name = "Mithril",    skill = 225 },
+    { name = "Mithril",    skill = 175 },
 }
 
 ------------------------------------------------------------------------

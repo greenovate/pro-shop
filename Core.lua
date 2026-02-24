@@ -118,6 +118,13 @@ PS.DEFAULTS = {
         position = 195,   -- degrees around minimap
     },
 
+    toggleFrame = {
+        show = true,
+        point = "TOP",
+        x = 0,
+        y = -15,
+    },
+
     framePosition = nil,  -- { point, relativeTo, relPoint, x, y }
 }
 
@@ -247,6 +254,7 @@ function PS:ADDON_LOADED(addon)
 
     -- Create minimap button early so collectors (ElvUI, MBB, etc.) can find it
     self:CreateMinimapButton()
+    self:CreateToggleFrame()
 
     self:UnregisterEvent("ADDON_LOADED")
 end
@@ -325,13 +333,31 @@ SlashCmdList["PROSHOP"] = function(msg)
         PS:ToggleUI()
     elseif cmd == "toggle" then
         PS.db.enabled = not PS.db.enabled
-        PS:Print("Addon " .. (PS.db.enabled and C.GREEN .. "ENABLED" or C.RED .. "DISABLED") .. C.R)
+        if PS.db.enabled then
+            if PS.db.monitor.enabled and not PS.monitoringActive then
+                PS:StartMonitoring()
+            end
+        else
+            if PS.monitoringActive then
+                PS:StopMonitoring()
+            end
+        end
+        PS:UpdateToggleFrame()
+        PS:Print("Pro Shop is now " .. (PS.db.enabled and C.GREEN .. "OPEN" or C.RED .. "CLOSED") .. C.R)
     elseif cmd == "on" then
         PS.db.enabled = true
-        PS:Print("Addon " .. C.GREEN .. "ENABLED" .. C.R)
+        if PS.db.monitor.enabled and not PS.monitoringActive then
+            PS:StartMonitoring()
+        end
+        PS:UpdateToggleFrame()
+        PS:Print("Pro Shop is now " .. C.GREEN .. "OPEN" .. C.R)
     elseif cmd == "off" then
         PS.db.enabled = false
-        PS:Print("Addon " .. C.RED .. "DISABLED" .. C.R)
+        if PS.monitoringActive then
+            PS:StopMonitoring()
+        end
+        PS:UpdateToggleFrame()
+        PS:Print("Pro Shop is now " .. C.RED .. "CLOSED" .. C.R)
     elseif cmd == "scan" then
         PS:ScanProfessions()
         PS:DeepScanProfessions()

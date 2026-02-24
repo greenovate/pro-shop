@@ -127,6 +127,12 @@ function PS:ProcessChatMessage(text, senderName, source)
     -- Strip item links for plain text matching, but keep original for display
     local plainText = self:StripLinks(text)
 
+    -- Step 0: Ignore WTS / selling messages immediately
+    if self:ShouldIgnoreMessage(plainText) then
+        self:Debug("Ignored (selling/WTS): " .. plainText:sub(1, 60))
+        return
+    end
+
     -- Step 1: Check if message contains a request pattern
     local hasRequest = self:HasRequestPattern(plainText)
 

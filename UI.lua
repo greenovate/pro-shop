@@ -6,6 +6,133 @@ local _, PS = ...
 local C = PS.C
 
 ------------------------------------------------------------------------
+-- Open / Closed Toggle Frame  (always-visible shop sign)
+------------------------------------------------------------------------
+function PS:CreateToggleFrame()
+    if self.toggleFrame then return end
+
+    local f = CreateFrame("Frame", "ProShopToggleFrame", UIParent, "BackdropTemplate")
+    f:SetSize(130, 36)
+    f:SetFrameStrata("HIGH")
+    f:SetFrameLevel(100)
+    f:SetClampedToScreen(true)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+
+    -- Backdrop
+    f:SetBackdrop({
+        bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    f:SetBackdropColor(0.08, 0.08, 0.08, 0.92)
+    f:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+
+    -- Title label: "PRO SHOP"
+    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    title:SetPoint("TOP", f, "TOP", 0, -5)
+    title:SetText("|cff00ccffPRO|r |cffffffffSHOP|r")
+    title:SetFont(title:GetFont(), 9, "OUTLINE")
+    f.title = title
+
+    -- Status label: "OPEN" or "CLOSED"
+    local status = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    status:SetPoint("BOTTOM", f, "BOTTOM", 0, 5)
+    f.status = status
+
+    -- Indicator dot
+    local dot = f:CreateTexture(nil, "OVERLAY")
+    dot:SetSize(10, 10)
+    dot:SetPoint("RIGHT", status, "LEFT", -3, 0)
+    dot:SetTexture("Interface\\COMMON\\Indicator-Green")
+    f.dot = dot
+
+    -- Update visual state
+    local function UpdateState()
+        if PS.db.enabled then
+            status:SetText("|cff00ff00OPEN|r")
+            dot:SetTexture("Interface\\COMMON\\Indicator-Green")
+            f:SetBackdropBorderColor(0.0, 0.8, 0.0, 1)
+        else
+            status:SetText("|cffff3333CLOSED|r")
+            dot:SetTexture("Interface\\COMMON\\Indicator-Red")
+            f:SetBackdropBorderColor(0.8, 0.0, 0.0, 1)
+        end
+    end
+    f.UpdateState = UpdateState
+
+    -- Dragging
+    f:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
+    f:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, relPoint, x, y = self:GetPoint()
+        PS.db.toggleFrame.point = point
+        PS.db.toggleFrame.x = x
+        PS.db.toggleFrame.y = y
+    end)
+
+    -- Click to toggle
+    f:SetScript("OnMouseUp", function(self, button)
+        if button == "RightButton" then
+            PS.db.enabled = not PS.db.enabled
+            if PS.db.enabled then
+                if PS.db.monitor.enabled and not PS.monitoringActive then
+                    PS:StartMonitoring()
+                end
+            else
+                if PS.monitoringActive then
+                    PS:StopMonitoring()
+                end
+            end
+            UpdateState()
+            PS:Print("Pro Shop is now " .. (PS.db.enabled and C.GREEN .. "OPEN" or C.RED .. "CLOSED") .. C.R)
+        end
+    end)
+
+    -- Tooltip
+    f:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine("|cff00ccffPro Shop|r")
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine("Status", PS.db.enabled and "|cff00ff00Open|r" or "|cffff3333Closed|r")
+        GameTooltip:AddDoubleLine("Queue", "|cffffff00" .. #PS.queue .. "/" .. PS.db.queue.maxSize .. "|r")
+        GameTooltip:AddDoubleLine("Tips (session)", "|cffffd700" .. (PS.db.tips.session or 0) .. "g|r")
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("|cff888888Right-Click to toggle Open/Closed|r")
+        GameTooltip:AddLine("|cff888888Drag to move|r")
+        GameTooltip:Show()
+    end)
+    f:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
+    -- Restore saved position
+    local saved = self.db.toggleFrame
+    f:ClearAllPoints()
+    f:SetPoint(saved.point or "TOP", UIParent, saved.point or "TOP", saved.x or 0, saved.y or -15)
+
+    UpdateState()
+
+    if not self.db.toggleFrame.show then
+        f:Hide()
+    end
+
+    self.toggleFrame = f
+end
+
+-- Update the toggle frame state externally (e.g., from slash command toggle)
+function PS:UpdateToggleFrame()
+    if self.toggleFrame and self.toggleFrame.UpdateState then
+        self.toggleFrame:UpdateState()
+    end
+end
+
+------------------------------------------------------------------------
 -- Minimap Button (standard conventions for minimap collectors)
 ------------------------------------------------------------------------
 function PS:CreateMinimapButton()
@@ -94,7 +221,17 @@ function PS:CreateMinimapButton()
             end
         elseif button == "RightButton" then
             PS.db.enabled = not PS.db.enabled
-            PS:Print("Addon " .. (PS.db.enabled and C.GREEN .. "ENABLED" or C.RED .. "DISABLED") .. C.R)
+            if PS.db.enabled then
+                if PS.db.monitor.enabled and not PS.monitoringActive then
+                    PS:StartMonitoring()
+                end
+            else
+                if PS.monitoringActive then
+                    PS:StopMonitoring()
+                end
+            end
+            PS:UpdateToggleFrame()
+            PS:Print("Pro Shop is now " .. (PS.db.enabled and C.GREEN .. "OPEN" or C.RED .. "CLOSED") .. C.R)
         end
     end)
 
@@ -635,6 +772,23 @@ function PS:BuildGeneralTab(parent)
             C.WHITE .. "Queue: " .. C.GREEN .. #PS.queue .. C.R
         )
     end)
+
+    y = y - 90
+
+    -- Credits
+    CreateHeader(parent, "Credits", 5, y)
+    y = y - 25
+
+    local credits = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    credits:SetPoint("TOPLEFT", 15, y)
+    credits:SetWidth(460)
+    credits:SetJustifyH("LEFT")
+    credits:SetText(
+        C.CYAN .. "Pro Shop" .. C.R .. " " .. C.GRAY .. "v" .. PS.VERSION .. C.R .. "\n" ..
+        C.WHITE .. "Created by " .. C.GOLD .. "Evild" .. C.R ..
+        C.WHITE .. " aka " .. C.GREEN .. "\"Iowke\"" .. C.R ..
+        C.WHITE .. " on " .. C.CYAN .. "Dreamscythe" .. C.R
+    )
 end
 
 ------------------------------------------------------------------------

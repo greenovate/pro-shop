@@ -135,6 +135,48 @@ PS.REQUEST_PATTERNS = {
 }
 
 ------------------------------------------------------------------------
+-- Ignore Patterns  (messages we should NEVER respond to)
+------------------------------------------------------------------------
+PS.IGNORE_PATTERNS = {
+    "^wts%s",          -- "WTS [item]"
+    "^wts%W",          -- "WTS: [item]"
+    "^selling%s",      -- "selling [item]"
+    "^wts$",           -- bare "WTS"
+    "%[.*%].*%dg",     -- "[item] 5g" (price listing)
+    "pst.*%dg",        -- "pst 10g" (price listing)
+    "each%s*$",        -- "5g each"
+    "price",           -- "good price"
+    "cheap",           -- "cheap [item]"
+    "discount",        -- "discount [item]"
+    "free tip",        -- "free tip"
+    "cod%s",           -- "COD me"
+    "c%.o%.d",         -- "C.O.D."
+    "in stock",        -- "in stock"
+    "have .+ for sale", -- "have X for sale"
+    "for sale",        -- "X for sale"
+    -- Raid / group recruitment
+    "ms>os",           -- loot rules
+    "ms > os",         -- loot rules (spaced)
+    "ms%s*/%s*os",     -- "MS/OS"
+    "gdkp",           -- GDKP runs
+    "soft.?res",       -- "soft reserve" / "softres"
+    "%d+%s*sr%s",      -- "1 SR" (soft reserve)
+    "%d+%s*sr$",       -- "1 SR" at end
+    "dkp",             -- DKP runs
+    "loot council",    -- loot council
+    "boe.?s?%s*hr",    -- "BoE's HR" / "BoE HR"
+    "bag of gems",     -- Mag loot reference
+    "tank.*heal",      -- "need tank and healer"
+    "heal.*tank",      -- "need healer and tank"
+    "dps.*tank",       -- "need dps and tank"
+    "tank.*dps",       -- "need tank and dps"
+    "%d/%d%d[hm]",     -- "2/10H" or "3/25m" (raid comp)
+    "arena%s*%d",      -- "arena 2s/3s/5s"
+    "rated",           -- rated arena/BG
+    "rbg",             -- rated BG
+}
+
+------------------------------------------------------------------------
 -- TBC Item Keyword Database
 -- Maps keywords found in chat -> profession and item/spell info
 ------------------------------------------------------------------------
@@ -369,11 +411,11 @@ PS.ITEM_KEYWORDS = {
     ---------------------
     -- LOCKPICKING (requiredSkill = minimum lockpicking skill to open)
     ---------------------
-    ["khorium lockbox"]            = { profession = "Lockpicking", item = "Khorium Lockbox", requiredSkill = 375 },
-    ["eternium lockbox"]           = { profession = "Lockpicking", item = "Eternium Lockbox", requiredSkill = 375 },
-    ["felsteel lockbox"]           = { profession = "Lockpicking", item = "Felsteel Lockbox", requiredSkill = 350 },
-    ["adamantite lockbox"]         = { profession = "Lockpicking", item = "Adamantite Lockbox", requiredSkill = 325 },
-    ["mithril lockbox"]            = { profession = "Lockpicking", item = "Mithril Lockbox", requiredSkill = 225 },
+    ["khorium lockbox"]            = { profession = "Lockpicking", item = "Khorium Lockbox", requiredSkill = 325 },
+    ["eternium lockbox"]           = { profession = "Lockpicking", item = "Eternium Lockbox", requiredSkill = 225 },
+    ["felsteel lockbox"]           = { profession = "Lockpicking", item = "Felsteel Lockbox", requiredSkill = 300 },
+    ["adamantite lockbox"]         = { profession = "Lockpicking", item = "Adamantite Lockbox", requiredSkill = 275 },
+    ["mithril lockbox"]            = { profession = "Lockpicking", item = "Mithril Lockbox", requiredSkill = 175 },
     ["thorium lockbox"]            = { profession = "Lockpicking", item = "Thorium Lockbox", requiredSkill = 225 },
     ["locked box"]                 = { profession = "Lockpicking", item = "Locked Box", requiredSkill = 1 },
     ["locked chest"]               = { profession = "Lockpicking", item = "Locked Chest", requiredSkill = 1 },
@@ -606,6 +648,17 @@ PS.NOTABLE_RECIPES = {
 function PS:HasRequestPattern(msg)
     local lower = msg:lower()
     for _, pattern in ipairs(self.REQUEST_PATTERNS) do
+        if lower:find(pattern) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Check if a message should be ignored (WTS / selling)
+function PS:ShouldIgnoreMessage(msg)
+    local lower = msg:lower()
+    for _, pattern in ipairs(self.IGNORE_PATTERNS) do
         if lower:find(pattern) then
             return true
         end
