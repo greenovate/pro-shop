@@ -547,7 +547,7 @@ function PS:CreateMainFrame()
     f.TitleText:SetText(C.CYAN .. "Pro Shop" .. C.R .. " " .. C.GRAY .. "v" .. PS.VERSION .. C.R)
 
     -- Tab buttons
-    local tabs = { "General", "Monitor", "Advertise", "Whispers", "Queue" }
+    local tabs = { "General", "Monitor", "Advertise", "Whispers", "Queue", "Credits" }
     f.tabs = {}
     f.tabFrames = {}
 
@@ -583,6 +583,7 @@ function PS:CreateMainFrame()
     self:BuildAdvertiseTab(f.tabFrames[3])
     self:BuildWhispersTab(f.tabFrames[4])
     self:BuildQueueTab(f.tabFrames[5])
+    self:BuildCreditsTab(f.tabFrames[6])
 
     -- Show first tab
     f.tabFrames[1]:Show()
@@ -772,23 +773,6 @@ function PS:BuildGeneralTab(parent)
             C.WHITE .. "Queue: " .. C.GREEN .. #PS.queue .. C.R
         )
     end)
-
-    y = y - 90
-
-    -- Credits
-    CreateHeader(parent, "Credits", 5, y)
-    y = y - 25
-
-    local credits = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    credits:SetPoint("TOPLEFT", 15, y)
-    credits:SetWidth(460)
-    credits:SetJustifyH("LEFT")
-    credits:SetText(
-        C.CYAN .. "Pro Shop" .. C.R .. " " .. C.GRAY .. "v" .. PS.VERSION .. C.R .. "\n" ..
-        C.WHITE .. "Created by " .. C.GOLD .. "Evild" .. C.R ..
-        C.WHITE .. " aka " .. C.GREEN .. "\"Iowke\"" .. C.R ..
-        C.WHITE .. " on " .. C.CYAN .. "Dreamscythe" .. C.R
-    )
 end
 
 ------------------------------------------------------------------------
@@ -1254,6 +1238,89 @@ end
 -- Register with ESC key
 ------------------------------------------------------------------------
 table.insert(UISpecialFrames, "ProShopMainFrame")
+
+------------------------------------------------------------------------
+-- Tab 6: Credits & Changelog
+------------------------------------------------------------------------
+function PS:BuildCreditsTab(parent)
+    local y = -5
+
+    CreateHeader(parent, "About", 5, y)
+    y = y - 30
+
+    -- Title
+    local title = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 15, y)
+    title:SetText(C.CYAN .. "Pro Shop" .. C.R)
+
+    local ver = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    ver:SetPoint("LEFT", title, "RIGHT", 8, 0)
+    ver:SetText(C.GRAY .. "v" .. PS.VERSION .. C.R)
+
+    y = y - 25
+
+    local author = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    author:SetPoint("TOPLEFT", 15, y)
+    author:SetWidth(460)
+    author:SetJustifyH("LEFT")
+    author:SetText(
+        C.WHITE .. "Created by " .. C.GOLD .. "Evild" .. C.R ..
+        C.WHITE .. " aka " .. C.GREEN .. "\"Iowke\"" .. C.R ..
+        C.WHITE .. " on " .. C.CYAN .. "Dreamscythe" .. C.R
+    )
+
+    y = y - 25
+
+    local desc = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    desc:SetPoint("TOPLEFT", 15, y)
+    desc:SetWidth(460)
+    desc:SetJustifyH("LEFT")
+    desc:SetText(C.GRAY .. "A profession services addon for WoW Anniversary Classic.\nAutomate advertising, monitor chat for customers, manage a queue, and track tips." .. C.R)
+
+    y = y - 50
+
+    CreateHeader(parent, "Changelog", 5, y)
+    y = y - 25
+
+    local changelog = {
+        {
+            version = "1.0.0",
+            date = "2026-02-24",
+            changes = {
+                "Initial release",
+                "Profession detection and recipe scanning",
+                "Trade/General/LFG/Say/Yell chat monitoring",
+                "Auto-whisper and zone-verified auto-invite",
+                "Per-profession ad broadcasting (manual, TBC-safe)",
+                "Customer queue with tip tracking and auto-thank",
+                "Open/Closed toggle frame (always visible)",
+                "WTS/selling and raid recruitment message filtering",
+                "Busy mode and blacklist support",
+                "ElvUI auto-skinning",
+                "Minimap button with drag positioning",
+                "Notable recipes database for ad generation",
+                "Lockpicking support with skill-gated lockbox tiers",
+            },
+        },
+    }
+
+    for _, entry in ipairs(changelog) do
+        local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        header:SetPoint("TOPLEFT", 15, y)
+        header:SetText(C.GOLD .. "v" .. entry.version .. C.R .. "  " .. C.GRAY .. entry.date .. C.R)
+        y = y - 18
+
+        for _, change in ipairs(entry.changes) do
+            local line = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            line:SetPoint("TOPLEFT", 25, y)
+            line:SetWidth(440)
+            line:SetJustifyH("LEFT")
+            line:SetText(C.WHITE .. "- " .. change .. C.R)
+            y = y - 15
+        end
+        y = y - 10
+    end
+end
 
 ------------------------------------------------------------------------
 -- ElvUI Skinning Support
