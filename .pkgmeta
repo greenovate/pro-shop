@@ -1,0 +1,7 @@
+package-as: ProShop
+
+ignore:
+  - .gitignore
+  - .pkgmeta
+  - README.md
+  - .github

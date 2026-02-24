@@ -1,0 +1,15 @@
+## Interface: 20505
+## Title: |cff00ccffPro Shop|r
+## Notes: Professional services addon - advertise crafting services, monitor trade chat for customers, auto-invite and manage your crafting business!
+## Author: Derrick
+## Version: 1.0.0
+## SavedVariables: ProShopDB
+## DefaultState: enabled
+
+Core.lua
+Database.lua
+Professions.lua
+Monitor.lua
+Advertise.lua
+Queue.lua
+UI.lua
