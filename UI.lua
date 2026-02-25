@@ -89,6 +89,7 @@ function PS:CreateToggleFrame()
                 end
             end
             UpdateState()
+            PS:RefreshEngagementPanel()
             PS:Print("Pro Shop is now " .. (PS.db.enabled and C.GREEN .. "OPEN" or C.RED .. "CLOSED") .. C.R)
         end
     end)
@@ -130,6 +131,155 @@ function PS:UpdateToggleFrame()
     if self.toggleFrame and self.toggleFrame.UpdateState then
         self.toggleFrame:UpdateState()
     end
+    self:RefreshEngagementPanel()
+end
+
+------------------------------------------------------------------------
+-- Engagement Panel  (floating customer list, anchored to toggle frame)
+------------------------------------------------------------------------
+function PS:CreateEngagementPanel()
+    if self.engagementPanel then return end
+    if not self.toggleFrame then return end
+
+    local f = CreateFrame("Frame", "ProShopEngagementPanel", self.toggleFrame, "BackdropTemplate")
+    f:SetSize(320, 40) -- will resize dynamically
+    f:SetPoint("TOP", self.toggleFrame, "BOTTOM", 0, -2)
+    f:SetFrameStrata("HIGH")
+    f:SetFrameLevel(99)
+    f:SetClampedToScreen(true)
+
+    f:SetBackdrop({
+        bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    f:SetBackdropColor(0.05, 0.05, 0.05, 0.92)
+    f:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    -- Header
+    local header = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    header:SetPoint("TOP", f, "TOP", 0, -6)
+    header:SetText("|cffffff00Engagements|r")
+    f.header = header
+
+    -- Row container
+    f.rows = {}
+
+    f:Hide()
+    self.engagementPanel = f
+end
+
+function PS:RefreshEngagementPanel()
+    if not self.engagementPanel then
+        self:CreateEngagementPanel()
+    end
+    if not self.engagementPanel then return end
+
+    local panel = self.engagementPanel
+
+    -- Hide all existing rows
+    for _, row in ipairs(panel.rows) do
+        row:Hide()
+    end
+
+    -- Don't show if shop is closed or queue is empty
+    if not self.db.enabled or #self.queue == 0 then
+        panel:Hide()
+        return
+    end
+
+    local ROW_HEIGHT = 36
+    local PADDING = 6
+    local MAX_MSG_LEN = 55
+    local y = -20
+
+    for i, customer in ipairs(self.queue) do
+        local row = panel.rows[i]
+        if not row then
+            row = CreateFrame("Frame", nil, panel)
+            row:SetSize(308, ROW_HEIGHT)
+
+            -- State indicator dot
+            local dot = row:CreateTexture(nil, "OVERLAY")
+            dot:SetSize(8, 8)
+            dot:SetPoint("TOPLEFT", 4, -6)
+            dot:SetTexture("Interface\\COMMON\\Indicator-Green")
+            row.dot = dot
+
+            -- Name + item label
+            local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            nameText:SetPoint("TOPLEFT", 16, -4)
+            nameText:SetJustifyH("LEFT")
+            row.nameText = nameText
+
+            -- Original message (truncated)
+            local msgText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            msgText:SetPoint("TOPLEFT", 16, -17)
+            msgText:SetWidth(290)
+            msgText:SetJustifyH("LEFT")
+            row.msgText = msgText
+
+            -- Separator line
+            local sep = row:CreateTexture(nil, "OVERLAY")
+            sep:SetHeight(1)
+            sep:SetPoint("BOTTOMLEFT", 4, 0)
+            sep:SetPoint("BOTTOMRIGHT", -4, 0)
+            sep:SetColorTexture(0.3, 0.3, 0.3, 0.5)
+            row.sep = sep
+
+            panel.rows[i] = row
+        end
+
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, y)
+
+        -- State color
+        local stateColor
+        if customer.state == "IN_PROGRESS" then
+            stateColor = "Interface\\COMMON\\Indicator-Yellow"
+        elseif customer.state == "COMPLETED" then
+            stateColor = "Interface\\COMMON\\Indicator-Gray"
+        elseif customer.state == "INVITED" then
+            stateColor = "Interface\\COMMON\\Indicator-Green"
+        else
+            stateColor = "Interface\\COMMON\\Indicator-Green"
+        end
+        row.dot:SetTexture(stateColor)
+
+        -- Name and item
+        local stateTag = ""
+        if customer.state == "IN_PROGRESS" then
+            stateTag = " |cffffff00[serving]|r"
+        elseif customer.state == "INVITED" then
+            stateTag = " |cff888888[invited]|r"
+        elseif customer.state == "BUSY_NOTIFIED" then
+            stateTag = " |cffff8800[busy]|r"
+        end
+
+        row.nameText:SetText(
+            "|cff00ff00" .. customer.name .. "|r" ..
+            " - |cff00ccff" .. (customer.item or customer.profession or "?") .. "|r" ..
+            stateTag
+        )
+
+        -- Original message (truncated)
+        local origMsg = customer.originalMessage or ""
+        -- Strip color codes for display
+        origMsg = origMsg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H[^|]+|h", ""):gsub("|h", "")
+        if #origMsg > MAX_MSG_LEN then
+            origMsg = origMsg:sub(1, MAX_MSG_LEN) .. "..."
+        end
+        row.msgText:SetText("|cff999999\"" .. origMsg .. "\"|r")
+
+        row:Show()
+        y = y - ROW_HEIGHT
+    end
+
+    -- Resize panel to fit
+    local totalHeight = 24 + (#self.queue * ROW_HEIGHT) + PADDING
+    panel:SetSize(320, totalHeight)
+    panel:Show()
 end
 
 ------------------------------------------------------------------------

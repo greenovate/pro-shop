@@ -275,6 +275,9 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
             end
         end
     end
+
+    -- Refresh the engagement panel
+    self:RefreshEngagementPanel()
 end
 
 ------------------------------------------------------------------------

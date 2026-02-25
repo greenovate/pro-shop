@@ -64,6 +64,7 @@ function PS:RemoveFromQueue(playerName)
     for i, customer in ipairs(self.queue) do
         if customer.name == clean then
             table.remove(self.queue, i)
+            self:RefreshEngagementPanel()
             return true
         end
     end
@@ -72,6 +73,7 @@ end
 
 function PS:ClearQueue()
     self.queue = {}
+    self:RefreshEngagementPanel()
 end
 
 function PS:ServeNextCustomer()
@@ -99,6 +101,8 @@ function PS:ServeNextCustomer()
                 SendChatMessage("Hey! I'm ready for your " .. (customer.item or "order") .. ". Accepting the group invite and open trade when you're here!",
                     "WHISPER", nil, custName)
             end)
+
+            self:RefreshEngagementPanel()
             return
         end
     end

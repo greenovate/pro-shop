@@ -255,6 +255,7 @@ function PS:ADDON_LOADED(addon)
     -- Create minimap button early so collectors (ElvUI, MBB, etc.) can find it
     self:CreateMinimapButton()
     self:CreateToggleFrame()
+    self:CreateEngagementPanel()
 
     self:UnregisterEvent("ADDON_LOADED")
 end
