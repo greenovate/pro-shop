@@ -1055,6 +1055,8 @@ function PS:BuildGeneralTab(parent)
             end
             PS.db.activeProfessions[profName] = checked
             PlaySound(checked and 856 or 857)
+            -- Refresh ad bar to reflect new active professions
+            PS:RefreshAdBar()
         end)
 
         y = y - 24
@@ -1357,6 +1359,8 @@ function PS:PopulateAdProfessions(content)
             end
             PS.db.advertise.activeProfessions[profName] = checked
             PlaySound(checked and 856 or 857)
+            -- Refresh ad bar to reflect change
+            PS:RefreshAdBar()
         end)
 
         cy = cy - 24
