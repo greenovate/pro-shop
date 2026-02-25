@@ -78,7 +78,12 @@ PS.PROFESSION_ALIASES = {
     ["lock box"]       = "Lockpicking",
     ["lock boxes"]     = "Lockpicking",
     ["rogue open"]     = "Lockpicking",
-    ["rogue"]           = "Lockpicking",
+    ["rogue to open"]   = "Lockpicking",
+    ["rogue to unlock"] = "Lockpicking",
+    ["rogue for lockbox"]  = "Lockpicking",
+    ["rogue for lockboxes"] = "Lockpicking",
+    ["rogue lockpick"]  = "Lockpicking",
+    ["rogue pick"]      = "Lockpicking",
     -- Mage Portals
     ["portal"]          = "Portals",
     ["portals"]         = "Portals",
@@ -173,8 +178,13 @@ PS.IGNORE_PATTERNS = {
     "tank.*dps",       -- "need tank and dps"
     "%d/%d%d[hm]",     -- "2/10H" or "3/25m" (raid comp)
     "arena%s*%d",      -- "arena 2s/3s/5s"
+    "%f[%d][235]s%f[%A]",  -- "2s" "3s" "5s" (arena sizes)
+    "%f[%d][235]v[235]",   -- "2v2" "3v3" "5v5"
     "rated",           -- rated arena/BG
     "rbg",             -- rated BG
+    -- Multi-class/role recruitment (heal/mage/lock, etc.)
+    "%w+/%w+/%w+%s+for",   -- "heal/mage/lock for ..."
+    "lf%s+%w+/%w+",        -- "LF heal/mage" (slash-separated roles)
 }
 
 ------------------------------------------------------------------------
