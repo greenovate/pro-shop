@@ -188,6 +188,8 @@ PS.IGNORE_PATTERNS = {
     "%w+/%w+/%w+%s+for",   -- "heal/mage/lock for ..."
     "lf%s+%w+/%w+",        -- "LF heal/mage" (slash-separated roles)
     -- Other players advertising THEIR services (not looking for ours)
+    "^lfw%s",              -- "LFW" = Looking For Work (advertising)
+    "^lfw$",               -- bare "LFW"
     "^opening%s",          -- "Opening all lockboxes..."
     "^crafting%s",         -- "Crafting [item]..."
     "^enchanting%s",       -- "Enchanting for tips..."
