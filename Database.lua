@@ -190,6 +190,8 @@ PS.IGNORE_PATTERNS = {
     -- Other players advertising THEIR services (not looking for ours)
     "^lfw%s",              -- "LFW" = Looking For Work (advertising)
     "^lfw$",               -- bare "LFW"
+    "lf%s+%w+%s+work",     -- "LF lockpicking work" (offering services)
+    "can%s+do%s+all",       -- "can do all lockboxes" (offering)
     "^opening%s",          -- "Opening all lockboxes..."
     "^crafting%s",         -- "Crafting [item]..."
     "^enchanting%s",       -- "Enchanting for tips..."

@@ -57,6 +57,11 @@ function PS:BuildLockpickingAd()
         return "[Pro Shop] Rogue lockpicking (" .. skill .. ") LFW! In {zone}. Tips welcome! PST!"
     end
 
+    -- Max lockpicking (350): advertise that we can open ALL lockboxes
+    if skill >= 350 then
+        return "[Pro Shop] Rogue lockpicking (MAX) LFW! Can open ALL lockboxes. In {zone}. Tips welcome! PST!"
+    end
+
     -- Build a list of the top boxes we can open (up to 4 for brevity)
     local displayBoxes = {}
     for i = 1, math.min(4, #canOpen) do
