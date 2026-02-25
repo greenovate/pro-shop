@@ -13,14 +13,14 @@ local C = PS.C
 ------------------------------------------------------------------------
 PS.STATIC_AD_TEMPLATES = {
     ["Portals"] = {
-        "[Pro Shop] Mage portals available! Shattrath, all capital cities. Tips appreciated! PST with destination!",
-        "[Pro Shop] Portals open! Shatt, SW, IF, Org, UC & more. Fast service, tips welcome! PST!",
-        "[Pro Shop] Need a portal? Mage LFW! All TBC destinations available. PST your city!",
+        "[Pro Shop] Mage portals available! Shattrath, all capital cities. In {zone}. Tips appreciated! PST!",
+        "[Pro Shop] Portals open! Shatt, SW, IF, Org, UC & more. In {zone}. Tips welcome! PST!",
+        "[Pro Shop] Need a portal? Mage LFW! All TBC destinations available. In {zone}. PST!",
     },
     ["Summons"] = {
-        "[Pro Shop] Warlock available for summons! Need 2 clickers at destination. Tips appreciated! PST!",
-        "[Pro Shop] Summon service! Get where you need to be fast. Need 2 helpers at location. PST!",
-        "[Pro Shop] Need a summon? Warlock LFW! 2 people needed at destination. Tips welcome! PST!",
+        "[Pro Shop] Warlock available for summons! Need 2 clickers at destination. In {zone}. Tips appreciated! PST!",
+        "[Pro Shop] Summon service! Get where you need to be fast. Need 2 helpers at location. In {zone}. PST!",
+        "[Pro Shop] Need a summon? Warlock LFW! 2 people needed at destination. In {zone}. Tips welcome! PST!",
     },
 }
 
@@ -54,7 +54,7 @@ function PS:BuildLockpickingAd()
     end
 
     if #canOpen == 0 then
-        return "[Pro Shop] Rogue lockpicking (" .. skill .. ") LFW! Tips welcome! PST!"
+        return "[Pro Shop] Rogue lockpicking (" .. skill .. ") LFW! In {zone}. Tips welcome! PST!"
     end
 
     -- Build a list of the top boxes we can open (up to 4 for brevity)
@@ -66,7 +66,7 @@ function PS:BuildLockpickingAd()
     local boxList = table.concat(displayBoxes, ", ")
     local suffix = #canOpen > #displayBoxes and " & more" or ""
 
-    return "[Pro Shop] Rogue lockpicking (" .. skill .. ") LFW! " .. boxList .. suffix .. " lockboxes. Tips welcome! PST!"
+    return "[Pro Shop] Rogue lockpicking (" .. skill .. ") LFW! " .. boxList .. suffix .. " lockboxes. In {zone}. Tips welcome! PST!"
 end
 
 ------------------------------------------------------------------------
@@ -81,9 +81,9 @@ function PS:BuildProfessionAd(profession)
     local recipeCount = profData.numRecipes or 0
 
     if recipeCount > 0 then
-        return "[Pro Shop] " .. profession .. " (" .. skillLevel .. ") LFW! " .. recipeCount .. " recipes, your mats. Tips welcome! PST!"
+        return "[Pro Shop] " .. profession .. " (" .. skillLevel .. ") LFW! " .. recipeCount .. " recipes, your mats. In {zone}. Tips welcome! PST!"
     else
-        return "[Pro Shop] " .. profession .. " (" .. skillLevel .. ") LFW! PST with what you need!"
+        return "[Pro Shop] " .. profession .. " (" .. skillLevel .. ") LFW! In {zone}. PST with what you need!"
     end
 end
 
@@ -138,6 +138,9 @@ function PS:GenerateAdForProfession(profession)
     end
 
     if not msg then return nil end
+
+    -- Replace {zone} placeholder with actual zone
+    msg = msg:gsub("{zone}", GetRealZoneText() or "unknown")
 
     return msg
 end
