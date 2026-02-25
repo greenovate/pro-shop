@@ -844,8 +844,10 @@ function PS:ShowTab(index)
             tf:Hide()
         end
     end
-    -- Refresh queue tab when shown
-    if index == 5 then
+    -- Refresh dynamic tabs when shown
+    if index == 3 then
+        self:RefreshAdvertiseTab()
+    elseif index == 5 then
         self:RefreshQueueTab()
     end
 end
@@ -1164,7 +1166,39 @@ function PS:BuildAdvertiseTab(parent)
     content:SetSize(445, 800)
     scrollFrame:SetScrollChild(content)
 
-    -- Sort professions (only show globally-active ones)
+    -- Store reference for refresh
+    self.adScrollContent = content
+    self:PopulateAdProfessions(content)
+
+    y = y - 270
+
+    CreateHeader(parent, "Broadcast", 5, y)
+    y = y - 30
+
+    CreateButton(parent, "Broadcast Next", 10, y, 150, 28, function()
+        PS:BroadcastAd()
+    end)
+
+    CreateButton(parent, "Broadcast All", 170, y, 150, 28, function()
+        PS:BroadcastAllAds()
+    end)
+
+    local broadcastInfo = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    broadcastInfo:SetPoint("TOPLEFT", 330, y - 5)
+    broadcastInfo:SetWidth(160)
+    broadcastInfo:SetText(C.GRAY .. "\"Next\" rotates one profession per click." .. C.R)
+end
+
+------------------------------------------------------------------------
+-- Advertise Tab: Populate profession list (reusable for refresh)
+------------------------------------------------------------------------
+function PS:PopulateAdProfessions(content)
+    -- Clear existing children
+    local kids = { content:GetChildren() }
+    for _, child in ipairs(kids) do child:Hide(); child:SetParent(nil) end
+    local regions = { content:GetRegions() }
+    for _, region in ipairs(regions) do region:Hide(); region:SetParent(nil) end
+
     local sorted = {}
     for name, _ in pairs(PS.professions) do
         table.insert(sorted, name)
@@ -1175,7 +1209,6 @@ function PS:BuildAdvertiseTab(parent)
     for _, profName in ipairs(sorted) do
         local globallyActive = PS:IsProfessionActive(profName)
 
-        -- Checkbox for ad-specific toggle
         local cb = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
         cb:SetPoint("TOPLEFT", 0, cy)
         cb:SetSize(24, 24)
@@ -1212,7 +1245,6 @@ function PS:BuildAdvertiseTab(parent)
 
         cy = cy - 24
 
-        -- Custom ad edit box (only for globally active professions)
         if globallyActive then
             local ebLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             ebLabel:SetPoint("TOPLEFT", 28, cy)
@@ -1246,7 +1278,6 @@ function PS:BuildAdvertiseTab(parent)
 
             cy = cy - 28
 
-            -- Show current default ad below for reference
             local defaultAd = PS:GenerateDefaultAd(profName)
             if defaultAd then
                 local defLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1258,7 +1289,7 @@ function PS:BuildAdvertiseTab(parent)
             end
         end
 
-        cy = cy - 8  -- spacing between professions
+        cy = cy - 8
     end
 
     if #sorted == 0 then
@@ -1267,26 +1298,13 @@ function PS:BuildAdvertiseTab(parent)
         noProf:SetText(C.GRAY .. "No professions detected yet." .. C.R)
     end
 
-    -- Resize content to fit
     content:SetSize(445, math.abs(cy) + 20)
+end
 
-    y = y - 270
-
-    CreateHeader(parent, "Broadcast", 5, y)
-    y = y - 30
-
-    CreateButton(parent, "Broadcast Next", 10, y, 150, 28, function()
-        PS:BroadcastAd()
-    end)
-
-    CreateButton(parent, "Broadcast All", 170, y, 150, 28, function()
-        PS:BroadcastAllAds()
-    end)
-
-    local broadcastInfo = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    broadcastInfo:SetPoint("TOPLEFT", 330, y - 5)
-    broadcastInfo:SetWidth(160)
-    broadcastInfo:SetText(C.GRAY .. "\"Next\" rotates one profession per click." .. C.R)
+function PS:RefreshAdvertiseTab()
+    if self.adScrollContent then
+        self:PopulateAdProfessions(self.adScrollContent)
+    end
 end
 
 ------------------------------------------------------------------------
