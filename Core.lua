@@ -38,7 +38,15 @@ function PS:InvitePlayer(name)
         self:Debug("InvitePlayer via InviteByName: " .. name)
     else
         self:Print("|cffff0000No invite API available! Cannot invite " .. name .. "|r")
+        return
     end
+
+    -- Place a yellow star raid marker on ourselves so the customer can find us
+    C_Timer.After(1, function()
+        if SetRaidTarget and UnitInParty("player") then
+            SetRaidTarget("player", 1) -- 1 = Yellow Star
+        end
+    end)
 end
 
 ------------------------------------------------------------------------
