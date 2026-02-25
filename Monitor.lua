@@ -62,20 +62,25 @@ end
 -- Chat Event Handlers
 ------------------------------------------------------------------------
 function PS:CHAT_MSG_CHANNEL(text, playerName, languageName, channelName, ...)
-    if not self.db or not self.db.enabled then return end
-    if not self.db.monitor.enabled then return end
+    if not self.db then return end
+    if not self.db.enabled then
+        self:Debug("CHAT_MSG_CHANNEL blocked: addon is CLOSED (db.enabled=false)")
+        return
+    end
+    if not self.db.monitor.enabled then
+        self:Debug("CHAT_MSG_CHANNEL blocked: monitoring is disabled")
+        return
+    end
 
     -- Determine if this channel should be monitored
-    local shouldMonitor = false
-
     if self.db.monitor.tradeChat and IsTradeChannel(channelName) then
-        shouldMonitor = true
+        self:Debug("Trade msg from " .. tostring(playerName) .. ": " .. tostring(text):sub(1, 50))
         self:ProcessChatMessage(text, playerName, "trade")
     elseif self.db.monitor.generalChat and IsGeneralChannel(channelName) then
-        shouldMonitor = true
+        self:Debug("General msg from " .. tostring(playerName) .. ": " .. tostring(text):sub(1, 50))
         self:ProcessChatMessage(text, playerName, "general")
     elseif self.db.monitor.lfgChat and IsLFGChannel(channelName) then
-        shouldMonitor = true
+        self:Debug("LFG msg from " .. tostring(playerName) .. ": " .. tostring(text):sub(1, 50))
         self:ProcessChatMessage(text, playerName, "lfg")
     end
 end

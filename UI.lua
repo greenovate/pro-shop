@@ -579,8 +579,26 @@ local function CreateCheckbox(parent, label, x, y, dbPath, tooltip)
         PlaySound(checked and 856 or 857)
 
         -- Special handling for key toggles
-        if dbPath == "monitor.enabled" then
-            if checked then PS:StartMonitoring() else PS:StopMonitoring() end
+        if dbPath == "enabled" then
+            -- Master toggle: start/stop monitoring and update toggle frame
+            if checked then
+                if PS.db.monitor.enabled and not PS.monitoringActive then
+                    PS:StartMonitoring()
+                end
+            else
+                if PS.monitoringActive then
+                    PS:StopMonitoring()
+                end
+            end
+            PS:UpdateToggleFrame()
+            PS:RefreshEngagementPanel()
+            PS:Print("Pro Shop is now " .. (checked and PS.C.GREEN .. "OPEN" or PS.C.RED .. "CLOSED") .. PS.C.R)
+        elseif dbPath == "monitor.enabled" then
+            if checked and PS.db.enabled then
+                PS:StartMonitoring()
+            else
+                PS:StopMonitoring()
+            end
         end
     end)
 

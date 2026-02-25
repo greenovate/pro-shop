@@ -77,6 +77,7 @@ PS.PROFESSION_ALIASES = {
     ["lockboxes"]      = "Lockpicking",
     ["lock box"]       = "Lockpicking",
     ["lock boxes"]     = "Lockpicking",
+    ["rogue"]           = "Lockpicking",  -- "LF rogue" in trade = lockpicking
     ["rogue open"]     = "Lockpicking",
     ["rogue to open"]   = "Lockpicking",
     ["rogue to unlock"] = "Lockpicking",

@@ -304,9 +304,11 @@ function PS:Initialize()
         end
     end
 
-    -- Start systems
-    if self.db.monitor.enabled then
+    -- Start systems (only if addon is enabled AND monitoring is enabled)
+    if self.db.enabled and self.db.monitor.enabled then
         self:StartMonitoring()
+    elseif not self.db.enabled then
+        self:Print(C.RED .. "Pro Shop is CLOSED." .. C.R .. " Right-click the toggle frame or type " .. C.GREEN .. "/ps on" .. C.R .. " to open.")
     end
     -- Advertising is manual (button click) to comply with protected function restrictions
 
@@ -466,14 +468,34 @@ end
 
 function PS:PrintDiag()
     self:Print(C.GOLD .. "=== Diagnostics ===" .. C.R)
-    self:Print("  enabled: " .. tostring(self.db.enabled))
+    self:Print("  enabled (OPEN/CLOSED): " .. (self.db.enabled and C.GREEN .. "OPEN" or C.RED .. "CLOSED") .. C.R ..
+        " (raw: " .. tostring(self.db.enabled) .. ")")
     self:Print("  monitor.enabled: " .. tostring(self.db.monitor.enabled))
     self:Print("  monitoringActive: " .. tostring(self.monitoringActive))
+    self:Print("  initialized: " .. tostring(self.initialized))
     self:Print("  tradeChat: " .. tostring(self.db.monitor.tradeChat))
     self:Print("  generalChat: " .. tostring(self.db.monitor.generalChat))
     self:Print("  lfgChat: " .. tostring(self.db.monitor.lfgChat))
     self:Print("  autoInvite: " .. tostring(self.db.monitor.autoInvite))
     self:Print("  autoWhisper: " .. tostring(self.db.monitor.autoWhisper))
+
+    -- Check if events are actually registered
+    local eventsOk = self.EventFrame:IsEventRegistered("CHAT_MSG_CHANNEL")
+    self:Print("  CHAT_MSG_CHANNEL registered: " .. (eventsOk and C.GREEN .. "YES" or C.RED .. "NO") .. C.R)
+
+    -- Summary verdict
+    if not self.db.enabled then
+        self:Print(C.RED .. "  >> PROBLEM: Addon is CLOSED! Messages will be ignored." .. C.R)
+        self:Print(C.YELLOW .. "     Fix: /ps on  OR  right-click the toggle frame" .. C.R)
+    elseif not self.db.monitor.enabled then
+        self:Print(C.RED .. "  >> PROBLEM: Monitoring is disabled!" .. C.R)
+    elseif not self.monitoringActive then
+        self:Print(C.RED .. "  >> PROBLEM: Monitoring not started! Try /reload" .. C.R)
+    elseif not eventsOk then
+        self:Print(C.RED .. "  >> PROBLEM: Chat events not registered! Try /reload" .. C.R)
+    else
+        self:Print(C.GREEN .. "  >> Monitor is running normally." .. C.R)
+    end
 
     -- Detected professions
     self:Print(C.GOLD .. "  -- Detected Professions --" .. C.R)

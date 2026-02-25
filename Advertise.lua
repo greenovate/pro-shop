@@ -161,7 +161,9 @@ local EXCLUDED_PROFESSIONS = { ["Mining"] = true, ["Herbalism"] = true, ["Skinni
 -- Controlled from the General tab
 function PS:IsProfessionActive(profession)
     if self.db.activeProfessions and next(self.db.activeProfessions) then
-        return self.db.activeProfessions[profession] == true
+        local val = self.db.activeProfessions[profession]
+        if val ~= nil then return val end
+        -- Not in the saved table yet: default to active for non-excluded profs
     end
     -- Default: all detected non-gathering profs are active
     if EXCLUDED_PROFESSIONS[profession] then return false end
@@ -175,7 +177,9 @@ function PS:IsProfessionAdActive(profession)
     if not self:IsProfessionActive(profession) then return false end
     -- Then check ad-specific toggle
     if self.db.advertise.activeProfessions and next(self.db.advertise.activeProfessions) then
-        return self.db.advertise.activeProfessions[profession] == true
+        local val = self.db.advertise.activeProfessions[profession]
+        if val ~= nil then return val end
+        -- Not in the saved table: follow global active state
     end
     -- Default: all globally-active professions also advertise
     return true
