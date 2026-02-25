@@ -141,11 +141,11 @@ function PS:CreateEngagementPanel()
     if self.engagementPanel then return end
     if not self.toggleFrame then return end
 
-    local f = CreateFrame("Frame", "ProShopEngagementPanel", self.toggleFrame, "BackdropTemplate")
+    local f = CreateFrame("Frame", "ProShopEngagementPanel", UIParent, "BackdropTemplate")
     f:SetSize(320, 40) -- will resize dynamically
     f:SetPoint("TOP", self.toggleFrame, "BOTTOM", 0, -2)
     f:SetFrameStrata("HIGH")
-    f:SetFrameLevel(99)
+    f:SetFrameLevel(100)
     f:SetClampedToScreen(true)
 
     f:SetBackdrop({
