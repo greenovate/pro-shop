@@ -78,6 +78,7 @@ PS.PROFESSION_ALIASES = {
     ["lock box"]       = "Lockpicking",
     ["lock boxes"]     = "Lockpicking",
     ["rogue open"]     = "Lockpicking",
+    ["rogue"]           = "Lockpicking",
     -- Mage Portals
     ["portal"]          = "Portals",
     ["portals"]         = "Portals",
