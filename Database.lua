@@ -64,6 +64,7 @@ PS.PROFESSION_ALIASES = {
     -- Lockpicking
     ["lockpicking"]    = "Lockpicking",
     ["lockpick"]       = "Lockpicking",
+    ["lockpicker"]     = "Lockpicking",
     ["lock pick"]      = "Lockpicking",
     ["picker"]         = "Lockpicking",
     ["pick lock"]      = "Lockpicking",
