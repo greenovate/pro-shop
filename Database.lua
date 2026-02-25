@@ -187,6 +187,34 @@ PS.IGNORE_PATTERNS = {
     -- Multi-class/role recruitment (heal/mage/lock, etc.)
     "%w+/%w+/%w+%s+for",   -- "heal/mage/lock for ..."
     "lf%s+%w+/%w+",        -- "LF heal/mage" (slash-separated roles)
+    -- Other players advertising THEIR services (not looking for ours)
+    "^opening%s",          -- "Opening all lockboxes..."
+    "^crafting%s",         -- "Crafting [item]..."
+    "^enchanting%s",       -- "Enchanting for tips..."
+    "^doing%s",            -- "Doing enchants/ports..."
+    "^offering%s",         -- "Offering JC cuts..."
+    "^cutting%s",          -- "Cutting gems..."
+    "^making%s",           -- "Making flasks..."
+    "^transmuting%s",      -- "Transmuting..."
+    "all%s+lockbox",       -- "all lockboxes" (bulk service ad)
+    "free%s+of%s+charge",  -- "free of charge"
+    "tips%s+appreciated",  -- "tips appreciated"
+    "tips%s+welcome",      -- "tips welcome"
+    "tipping%s+optional",  -- "tipping optional"
+    "for%s+tips",          -- "enchanting for tips"
+    "accepting%s+tips",    -- "accepting tips"
+    "open%s+to%s+help",    -- "open to help"
+    "whisper%s+me",        -- "whisper me for..."
+    "pst%s+for",           -- "pst for enchants"
+    "pst%s+me",            -- "pst me"
+    "/w%s+me",             -- "/w me for..."
+    "^i%s+can%s",          -- "I can enchant/open/craft..."
+    "^can%s+do%s",         -- "Can do enchants..."
+    "have%s+all%s+cut",    -- "have all cuts"
+    "have%s+all%s+enchant", -- "have all enchants"
+    "have%s+all%s+recipe",  -- "have all recipes"
+    "have%s+all%s+pattern", -- "have all patterns"
+    "max%s+lock%s*pick",   -- "max lockpicking" (advertising skill level)
 }
 
 ------------------------------------------------------------------------
