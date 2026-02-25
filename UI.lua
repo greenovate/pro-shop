@@ -132,6 +132,120 @@ function PS:UpdateToggleFrame()
         self.toggleFrame:UpdateState()
     end
     self:RefreshEngagementPanel()
+    self:RefreshAdBar()
+end
+
+------------------------------------------------------------------------
+-- Quick Ad Bar  (floating profession ad buttons below toggle frame)
+------------------------------------------------------------------------
+function PS:CreateAdBar()
+    if self.adBar then return end
+    if not self.toggleFrame then return end
+
+    local f = CreateFrame("Frame", "ProShopAdBar", UIParent, "BackdropTemplate")
+    f:SetSize(130, 24)
+    f:SetPoint("TOP", self.toggleFrame, "BOTTOM", 0, -1)
+    f:SetFrameStrata("HIGH")
+    f:SetFrameLevel(100)
+    f:SetClampedToScreen(true)
+
+    f:SetBackdrop({
+        bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    f:SetBackdropColor(0.06, 0.06, 0.08, 0.92)
+    f:SetBackdropBorderColor(0.3, 0.6, 0.9, 0.8)
+
+    f.buttons = {}
+    f:Hide()
+    self.adBar = f
+end
+
+function PS:RefreshAdBar()
+    if not self.adBar then
+        self:CreateAdBar()
+    end
+    if not self.adBar then return end
+
+    local bar = self.adBar
+
+    -- Hide existing buttons
+    for _, btn in ipairs(bar.buttons) do
+        btn:Hide()
+    end
+
+    if not self.db.enabled then
+        bar:Hide()
+        return
+    end
+
+    -- Gather active ad professions
+    local profs = self:GetActiveAdProfessions()
+    if #profs == 0 then
+        bar:Hide()
+        return
+    end
+
+    -- Short labels for profession buttons
+    local SHORT_NAMES = {
+        ["Enchanting"] = "Ench",
+        ["Alchemy"] = "Alch",
+        ["Jewelcrafting"] = "JC",
+        ["Tailoring"] = "Tail",
+        ["Leatherworking"] = "LW",
+        ["Blacksmithing"] = "BS",
+        ["Engineering"] = "Eng",
+        ["Cooking"] = "Cook",
+        ["First Aid"] = "FA",
+        ["Lockpicking"] = "Locks",
+        ["Portals"] = "Ports",
+        ["Summons"] = "Summ",
+    }
+
+    local BTN_HEIGHT = 18
+    local BTN_PAD = 2
+    local x = 4
+    local maxWidth = 0
+
+    for i, profName in ipairs(profs) do
+        local btn = bar.buttons[i]
+        if not btn then
+            btn = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
+            btn:SetHeight(BTN_HEIGHT)
+            btn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+            bar.buttons[i] = btn
+        end
+
+        local label = SHORT_NAMES[profName] or profName:sub(1, 5)
+        btn:SetText(label)
+        btn:SetWidth(btn:GetFontString():GetStringWidth() + 16)
+        btn:SetPoint("LEFT", bar, "LEFT", x, 0)
+        btn:Show()
+
+        btn:SetScript("OnClick", function()
+            PS:BroadcastSingleAd(profName)
+        end)
+        btn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:SetText("Broadcast " .. profName .. " ad to trade chat")
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        x = x + btn:GetWidth() + BTN_PAD
+    end
+
+    maxWidth = x + 2
+    bar:SetSize(math.max(maxWidth, 60), BTN_HEIGHT + 8)
+    bar:Show()
+
+    -- Re-anchor engagement panel below the ad bar
+    if self.engagementPanel then
+        self.engagementPanel:ClearAllPoints()
+        self.engagementPanel:SetPoint("TOP", bar, "BOTTOM", 0, -1)
+    end
 end
 
 ------------------------------------------------------------------------
@@ -143,7 +257,9 @@ function PS:CreateEngagementPanel()
 
     local f = CreateFrame("Frame", "ProShopEngagementPanel", UIParent, "BackdropTemplate")
     f:SetSize(320, 40) -- will resize dynamically
-    f:SetPoint("TOP", self.toggleFrame, "BOTTOM", 0, -2)
+    -- Anchor below ad bar if it exists, otherwise below toggle frame
+    local anchorTo = self.adBar or self.toggleFrame
+    f:SetPoint("TOP", anchorTo, "BOTTOM", 0, -2)
     f:SetFrameStrata("HIGH")
     f:SetFrameLevel(100)
     f:SetClampedToScreen(true)

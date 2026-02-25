@@ -273,6 +273,7 @@ function PS:ADDON_LOADED(addon)
     -- Create minimap button early so collectors (ElvUI, MBB, etc.) can find it
     self:CreateMinimapButton()
     self:CreateToggleFrame()
+    self:CreateAdBar()
     self:CreateEngagementPanel()
 
     self:UnregisterEvent("ADDON_LOADED")
@@ -319,6 +320,9 @@ function PS:Initialize()
         self:Print(C.RED .. "Pro Shop is CLOSED." .. C.R .. " Right-click the toggle frame or type " .. C.GREEN .. "/ps on" .. C.R .. " to open.")
     end
     -- Advertising is manual (button click) to comply with protected function restrictions
+
+    -- Refresh the quick ad bar now that professions are loaded
+    self:RefreshAdBar()
 
     -- Queue cleanup timer
     C_Timer.NewTicker(self.QUEUE_CLEANUP_INTERVAL, function()

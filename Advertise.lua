@@ -293,3 +293,27 @@ function PS:BroadcastAllAds()
         self:Print(C.RED .. "No ad messages available." .. C.R)
     end
 end
+
+------------------------------------------------------------------------
+-- Broadcast a single profession ad  (called from quick ad bar)
+------------------------------------------------------------------------
+function PS:BroadcastSingleAd(profession)
+    if not self.db.enabled then
+        self:Print(C.RED .. "Addon is disabled." .. C.R)
+        return
+    end
+
+    local channelNum = self:GetTradeChannelNum()
+    if not channelNum then
+        self:Print(C.RED .. "Trade channel not found! Are you in a city?" .. C.R)
+        return
+    end
+
+    local msg = self:GenerateAdForProfession(profession)
+    if msg then
+        SendChatMessage(msg, "CHANNEL", nil, channelNum)
+        self:Print(C.GREEN .. "Ad sent for " .. C.CYAN .. profession .. C.R .. C.GREEN .. "!" .. C.R)
+    else
+        self:Print(C.RED .. "No ad message for " .. profession .. "." .. C.R)
+    end
+end
