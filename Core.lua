@@ -252,6 +252,11 @@ function PS:ADDON_LOADED(addon)
     self.db = ProShopDB
     self.db.tips.session = 0
 
+    -- Migrate old thanks whisper that was missing {player}
+    if self.db.whispers.thanks and not self.db.whispers.thanks:find("{player}") then
+        self.db.whispers.thanks = self.DEFAULTS.whispers.thanks
+    end
+
     -- Create minimap button early so collectors (ElvUI, MBB, etc.) can find it
     self:CreateMinimapButton()
     self:CreateToggleFrame()
