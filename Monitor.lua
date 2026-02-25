@@ -221,6 +221,9 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
     local proximitySource = (source == "say" or source == "yell")
     local canAutoInvite = self.db.monitor.autoInvite and (source ~= "lfg")
 
+    -- Some services don't need mats (skip askMats whisper for these)
+    local noMatsProfession = (profession == "Lockpicking" or profession == "Portals" or profession == "Summons")
+
     if self.db.busyMode then
         self:WhisperCustomer(playerName, "busy", { item = displayItem })
         customer.state = "BUSY_NOTIFIED"
@@ -239,25 +242,33 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
             if self.db.monitor.autoWhisper then
                 C_Timer.After(PS.WHISPER_DELAY, function()
                     PS:WhisperCustomer(playerName, "greeting", { item = displayItem })
-                    C_Timer.After(2, function()
-                        PS:WhisperCustomer(playerName, "askMats", { item = displayItem })
+                    if not noMatsProfession then
+                        C_Timer.After(2, function()
+                            PS:WhisperCustomer(playerName, "askMats", { item = displayItem })
+                            local cust = PS:GetQueuedCustomer(playerName)
+                            if cust then
+                                cust.state = "WHISPERED"
+                                cust.lastActivity = GetTime()
+                            end
+                        end)
+                    else
                         local cust = PS:GetQueuedCustomer(playerName)
                         if cust then
                             cust.state = "WHISPERED"
                             cust.lastActivity = GetTime()
                         end
-                    end)
+                    end
                 end)
             end
         end
 
-        -- Auto-invite with zone check
+        -- Auto-invite: lockpicking/portals/summons always invite immediately, others do zone check
         if canAutoInvite then
-            if proximitySource then
-                -- Say/Yell = they're right next to us, invite immediately
+            if proximitySource or noMatsProfession then
+                -- Proximity or no-mats services: invite immediately
                 self:InvitePlayer(playerName)
                 customer.state = "INVITED"
-                self:Debug("Invited " .. playerName .. " (proximity: " .. (source or "?") .. ")")
+                self:Debug("Invited " .. playerName .. " (" .. (noMatsProfession and "no-mats service" or "proximity") .. ")")
             else
                 -- Trade/General chat: verify same zone via /who before inviting
                 self:ZoneCheckAndInvite(playerName)
