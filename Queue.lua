@@ -118,6 +118,7 @@ function PS:CompleteCurrentCustomer()
     end
 
     current.state = PS.STATE.COMPLETED
+    self.customersServed = (self.customersServed or 0) + 1
     local name = current.name
 
     -- Auto-thank

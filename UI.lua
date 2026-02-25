@@ -49,15 +49,265 @@ function PS:CreateToggleFrame()
     dot:SetTexture("Interface\\COMMON\\Indicator-Green")
     f.dot = dot
 
-    -- Update visual state
+    ----------------------------------------------------------------
+    -- DASHBOARD elements (visible when shop is OPEN)
+    ----------------------------------------------------------------
+    local COMPACT_W, COMPACT_H = 130, 36
+    local DASH_W = 240
+
+    local dashFrame = CreateFrame("Frame", nil, f)
+    dashFrame:SetAllPoints()
+    dashFrame:Hide()
+    f.dashFrame = dashFrame
+
+    -- Dashboard title
+    local dTitle = dashFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    dTitle:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -8)
+    dTitle:SetText("|cff00ccffPRO|r |cffffffffSHOP|r")
+    dTitle:SetFont(dTitle:GetFont(), 11, "OUTLINE")
+
+    local dStatusText = dashFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    dStatusText:SetPoint("TOPRIGHT", f, "TOPLEFT", DASH_W - 10, -10)
+    dStatusText:SetText("|cff00ff00OPEN|r")
+
+    local dDot = dashFrame:CreateTexture(nil, "OVERLAY")
+    dDot:SetSize(8, 8)
+    dDot:SetTexture("Interface\\COMMON\\Indicator-Green")
+    dDot:SetPoint("RIGHT", dStatusText, "LEFT", -3, 0)
+
+    -- Separator 1
+    local dSep1 = dashFrame:CreateTexture(nil, "OVERLAY")
+    dSep1:SetSize(DASH_W - 12, 1)
+    dSep1:SetPoint("TOPLEFT", f, "TOPLEFT", 6, -24)
+    dSep1:SetColorTexture(0.3, 0.3, 0.35, 0.6)
+
+    -- Session label + duration
+    local dSessLabel = dashFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    dSessLabel:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -28)
+    dSessLabel:SetText("|cffffff00SESSION|r")
+
+    dashFrame.sessionTime = dashFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    dashFrame.sessionTime:SetPoint("TOPRIGHT", f, "TOPLEFT", DASH_W - 10, -28)
+    dashFrame.sessionTime:SetText("|cffffffff00:00:00|r")
+
+    -- Stat cards (2x2 grid)
+    local CARD_W, CARD_H = 105, 32
+
+    local function MakeStatCard(labelText, xOff, yOff)
+        local card = CreateFrame("Frame", nil, dashFrame, "BackdropTemplate")
+        card:SetSize(CARD_W, CARD_H)
+        card:SetPoint("TOPLEFT", f, "TOPLEFT", xOff, yOff)
+        card:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        card:SetBackdropColor(0.1, 0.1, 0.13, 0.9)
+        card:SetBackdropBorderColor(0.2, 0.2, 0.25, 0.5)
+        card.value = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        card.value:SetPoint("TOP", 0, -3)
+        card.label = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        card.label:SetPoint("BOTTOM", 0, 3)
+        card.label:SetText("|cff888888" .. labelText .. "|r")
+        return card
+    end
+
+    dashFrame.cardEarned = MakeStatCard("Earned",   10, -42)
+    dashFrame.cardGoldHr = MakeStatCard("Per Hour", 121, -42)
+    dashFrame.cardServed = MakeStatCard("Served",   10, -78)
+    dashFrame.cardQueue  = MakeStatCard("In Queue", 121, -78)
+
+    -- Separator 2
+    local dSep2 = dashFrame:CreateTexture(nil, "OVERLAY")
+    dSep2:SetSize(DASH_W - 12, 1)
+    dSep2:SetPoint("TOPLEFT", f, "TOPLEFT", 6, -114)
+    dSep2:SetColorTexture(0.3, 0.3, 0.35, 0.6)
+
+    -- Top Tippers section
+    local dTipHdr = dashFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    dTipHdr:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -119)
+    dTipHdr:SetText("|cffffff00TOP TIPPERS|r")
+
+    dashFrame.tipperLines = {}
+    for i = 1, 3 do
+        local tl = dashFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        tl:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -132 - (i - 1) * 13)
+        tl:SetWidth(DASH_W - 28)
+        tl:SetJustifyH("LEFT")
+        dashFrame.tipperLines[i] = tl
+    end
+
+    -- Separator 3
+    local dSep3 = dashFrame:CreateTexture(nil, "OVERLAY")
+    dSep3:SetSize(DASH_W - 12, 1)
+    dSep3:SetPoint("TOPLEFT", f, "TOPLEFT", 6, -172)
+    dSep3:SetColorTexture(0.3, 0.3, 0.35, 0.6)
+
+    -- Ad button container
+    dashFrame.adContainer = CreateFrame("Frame", nil, dashFrame)
+    dashFrame.adContainer:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -177)
+    dashFrame.adContainer:SetSize(DASH_W - 16, 20)
+    dashFrame.adButtons = {}
+
+    -- Busy mode toggle
+    local halfW = math.floor((DASH_W - 24) / 2)
+    dashFrame.busyBtn = CreateFrame("Button", nil, dashFrame, "UIPanelButtonTemplate")
+    dashFrame.busyBtn:SetSize(halfW, 20)
+    dashFrame.busyBtn:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -201)
+    dashFrame.busyBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+    dashFrame.busyBtn:SetScript("OnClick", function()
+        PS.db.busyMode = not PS.db.busyMode
+        PS:RefreshDashboard()
+        PS:Print("Busy mode: " .. (PS.db.busyMode and C.RED .. "ON" or C.GREEN .. "OFF") .. C.R)
+    end)
+
+    -- Take a Break (pause) button
+    dashFrame.pauseBtn = CreateFrame("Button", nil, dashFrame, "UIPanelButtonTemplate")
+    dashFrame.pauseBtn:SetSize(halfW, 20)
+    dashFrame.pauseBtn:SetPoint("LEFT", dashFrame.busyBtn, "RIGHT", 4, 0)
+    dashFrame.pauseBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+    dashFrame.pauseBtn:SetScript("OnClick", function()
+        if PS.paused then
+            -- Resume
+            PS.totalPausedTime = PS.totalPausedTime + (GetTime() - PS.pausedAt)
+            PS.paused = false
+            PS.pausedAt = 0
+            if PS.db.enabled and PS.db.monitor.enabled and not PS.monitoringActive then
+                PS:StartMonitoring()
+            end
+            PS:Print(C.GREEN .. "Break over — shop resumed!" .. C.R)
+        else
+            -- Pause
+            PS.paused = true
+            PS.pausedAt = GetTime()
+            if PS.monitoringActive then
+                PS:StopMonitoring()
+            end
+            PS:Print(C.YELLOW .. "Taking a break — monitoring paused. Session stats preserved." .. C.R)
+        end
+        PS:RefreshDashboard()
+    end)
+
+    -- Engagement section (integrated right panel)
+    local ENG_W = 290
+    f.DASH_W = DASH_W
+    f.ENG_W = ENG_W
+
+    -- Vertical separator between dashboard and engagements
+    dashFrame.vertSep = dashFrame:CreateTexture(nil, "OVERLAY")
+    dashFrame.vertSep:SetWidth(1)
+    dashFrame.vertSep:SetPoint("TOPLEFT", f, "TOPLEFT", DASH_W, -4)
+    dashFrame.vertSep:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", DASH_W, 4)
+    dashFrame.vertSep:SetColorTexture(0.3, 0.3, 0.35, 0.6)
+    dashFrame.vertSep:Hide()
+
+    -- Engagement header
+    dashFrame.engHeader = dashFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    dashFrame.engHeader:SetPoint("TOPLEFT", f, "TOPLEFT", DASH_W + 10, -8)
+    dashFrame.engHeader:SetText("|cffffff00ENGAGEMENTS|r")
+    dashFrame.engHeader:Hide()
+
+    -- Clear button (engagement section)
+    dashFrame.engClear = CreateFrame("Button", nil, dashFrame, "UIPanelButtonTemplate")
+    dashFrame.engClear:SetSize(42, 16)
+    dashFrame.engClear:SetPoint("TOPLEFT", f, "TOPLEFT", DASH_W + ENG_W - 96, -5)
+    dashFrame.engClear:SetText("Clear")
+    dashFrame.engClear:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+    dashFrame.engClear:SetScript("OnClick", function()
+        PS:ClearQueue()
+        PS:Print(C.GOLD .. "Engagements cleared." .. C.R)
+    end)
+    dashFrame.engClear:Hide()
+
+    -- Hide engagement button
+    dashFrame.engHide = CreateFrame("Button", nil, dashFrame, "UIPanelButtonTemplate")
+    dashFrame.engHide:SetSize(42, 16)
+    dashFrame.engHide:SetPoint("TOPLEFT", f, "TOPLEFT", DASH_W + ENG_W - 50, -5)
+    dashFrame.engHide:SetText("Hide")
+    dashFrame.engHide:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+    dashFrame.engHide:SetScript("OnClick", function()
+        PS.db.toggleFrame.showEngagements = false
+        PS:RefreshEngagementPanel()
+    end)
+    dashFrame.engHide:Hide()
+
+    -- Engagement rows container
+    dashFrame.engRows = {}
+
+    -- Invisible Button overlay on the In Queue card for reliable click
+    local queueBtn = CreateFrame("Button", nil, dashFrame)
+    queueBtn:SetAllPoints(dashFrame.cardQueue)
+    queueBtn:SetFrameLevel(dashFrame.cardQueue:GetFrameLevel() + 5)
+    queueBtn:RegisterForClicks("LeftButtonUp")
+    queueBtn:SetScript("OnClick", function()
+        PS.db.toggleFrame.showEngagements = not (PS.db.toggleFrame.showEngagements ~= false)
+        PS:RefreshEngagementPanel()
+    end)
+    queueBtn:SetScript("OnEnter", function(self)
+        dashFrame.cardQueue:SetBackdropBorderColor(0.4, 0.6, 0.9, 0.8)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Click to show/hide engagements")
+        GameTooltip:Show()
+    end)
+    queueBtn:SetScript("OnLeave", function(self)
+        dashFrame.cardQueue:SetBackdropBorderColor(0.2, 0.2, 0.25, 0.5)
+        GameTooltip:Hide()
+    end)
+
+    -- "Show Engagements" tab (floats on the right edge of the dashboard frame)
+    dashFrame.engShowBtn = CreateFrame("Button", nil, f, "BackdropTemplate")
+    dashFrame.engShowBtn:SetSize(22, 80)
+    dashFrame.engShowBtn:SetPoint("TOPLEFT", f, "TOPRIGHT", -1, -30)
+    dashFrame.engShowBtn:SetBackdrop({
+        bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    dashFrame.engShowBtn:SetBackdropColor(0.08, 0.08, 0.1, 0.95)
+    dashFrame.engShowBtn:SetBackdropBorderColor(0.4, 0.6, 0.9, 0.8)
+    dashFrame.engShowBtn:EnableMouse(true)
+    local engTabLabel = dashFrame.engShowBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    engTabLabel:SetPoint("CENTER", 0, 0)
+    engTabLabel:SetText("|cffffff00Q\nU\nE\nU\nE|r")
+    dashFrame.engShowBtn.label = engTabLabel
+    dashFrame.engShowBtn:SetScript("OnMouseUp", function()
+        PS.db.toggleFrame.showEngagements = true
+        PS:RefreshEngagementPanel()
+    end)
+    dashFrame.engShowBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(0.5, 0.8, 1.0, 1)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Show engagements")
+        GameTooltip:Show()
+    end)
+    dashFrame.engShowBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(0.4, 0.6, 0.9, 0.8)
+        GameTooltip:Hide()
+    end)
+    dashFrame.engShowBtn:Hide()
+
+    f.dashHeight = 227
+
+    ----------------------------------------------------------------
+    -- Update visual state  (compact <-> dashboard switch)
+    ----------------------------------------------------------------
     local function UpdateState()
         if PS.db.enabled then
-            status:SetText("|cff00ff00OPEN|r")
-            dot:SetTexture("Interface\\COMMON\\Indicator-Green")
-            f:SetBackdropBorderColor(0.0, 0.8, 0.0, 1)
+            title:Hide(); status:Hide(); dot:Hide()
+            dashFrame:Show()
+            f:SetBackdropColor(0.06, 0.06, 0.08, 0.95)
+            if PS.adBar then PS.adBar:Hide() end
+            PS:RefreshDashboard()  -- cascades to RefreshEngagementPanel
         else
+            -- CLOSED: compact mode
+            f:SetSize(COMPACT_W, COMPACT_H)
+            dashFrame:Hide()
+            title:Show(); status:Show(); dot:Show()
             status:SetText("|cffff3333CLOSED|r")
             dot:SetTexture("Interface\\COMMON\\Indicator-Red")
+            f:SetBackdropColor(0.08, 0.08, 0.08, 0.92)
             f:SetBackdropBorderColor(0.8, 0.0, 0.0, 1)
         end
     end
@@ -90,6 +340,7 @@ function PS:CreateToggleFrame()
             end
             UpdateState()
             PS:RefreshEngagementPanel()
+            PS:RefreshAdBar()
             PS:Print("Pro Shop is now " .. (PS.db.enabled and C.GREEN .. "OPEN" or C.RED .. "CLOSED") .. C.R)
         end
     end)
@@ -124,6 +375,13 @@ function PS:CreateToggleFrame()
     end
 
     self.toggleFrame = f
+
+    -- Auto-refresh dashboard stats every second
+    C_Timer.NewTicker(1, function()
+        if PS.toggleFrame and PS.toggleFrame.dashFrame and PS.toggleFrame.dashFrame:IsShown() then
+            PS:RefreshDashboard()
+        end
+    end)
 end
 
 -- Update the toggle frame state externally (e.g., from slash command toggle)
@@ -133,6 +391,146 @@ function PS:UpdateToggleFrame()
     end
     self:RefreshEngagementPanel()
     self:RefreshAdBar()
+end
+
+------------------------------------------------------------------------
+-- Dashboard Stats Refresh
+------------------------------------------------------------------------
+function PS:RefreshDashboard()
+    if not self.toggleFrame or not self.toggleFrame.dashFrame then return end
+    local df = self.toggleFrame.dashFrame
+    if not df:IsShown() then return end
+
+    -- Session duration (subtract paused time for accurate stats)
+    local totalPaused = self.totalPausedTime or 0
+    if self.paused and self.pausedAt > 0 then
+        totalPaused = totalPaused + (GetTime() - self.pausedAt)
+    end
+    local elapsed = (GetTime() - (self.sessionStartTime or GetTime())) - totalPaused
+    if elapsed < 0 then elapsed = 0 end
+    local h = math.floor(elapsed / 3600)
+    local m = math.floor((elapsed % 3600) / 60)
+    local s = math.floor(elapsed % 60)
+    local timeColor = self.paused and "|cffffff00" or "|cffffffff"
+    df.sessionTime:SetText(timeColor .. string.format("%02d:%02d:%02d", h, m, s) .. (self.paused and " PAUSED" or "") .. "|r")
+
+    -- Gold earned
+    local gold = self.db.tips.session or 0
+    df.cardEarned.value:SetText("|cffffd700" .. gold .. "g|r")
+
+    -- Gold per hour
+    local hrs = elapsed / 3600
+    local gph = hrs > 0.01 and math.floor(gold / hrs) or 0
+    df.cardGoldHr.value:SetText("|cffffd700" .. gph .. "g|r")
+
+    -- Customers served
+    df.cardServed.value:SetText("|cff00ff00" .. (self.customersServed or 0) .. "|r")
+
+    -- Queue count
+    df.cardQueue.value:SetText("|cffffff00" .. #self.queue .. "|r")
+
+    -- Top tippers (session only)
+    local tippers = {}
+    local epoch = self.sessionStartEpoch or 0
+    for _, entry in ipairs(self.db.tips.history or {}) do
+        if entry.timestamp and entry.timestamp >= epoch then
+            tippers[entry.name] = (tippers[entry.name] or 0) + entry.amount
+        end
+    end
+    local sorted = {}
+    for name, amount in pairs(tippers) do
+        table.insert(sorted, { name = name, amount = amount })
+    end
+    table.sort(sorted, function(a, b) return a.amount > b.amount end)
+
+    local medals = { "|cffffff00", "|cffaaaaaa", "|cffcd7f32" }
+    for i = 1, 3 do
+        local line = df.tipperLines[i]
+        if sorted[i] then
+            line:SetText(medals[i] .. i .. ".|r |cffffffff" .. sorted[i].name .. "|r  |cffffd700" .. sorted[i].amount .. "g|r")
+            line:Show()
+        elseif i == 1 then
+            line:SetText("|cff555555No tips yet|r")
+            line:Show()
+        else
+            line:SetText("")
+            line:Hide()
+        end
+    end
+
+    -- Busy button text
+    if self.db.busyMode then
+        df.busyBtn:SetText("Busy |cffff3333ON|r")
+    else
+        df.busyBtn:SetText("Busy |cff00ff00OFF|r")
+    end
+
+    -- Pause button text
+    if self.paused then
+        df.pauseBtn:SetText("|cff00ff00Resume|r")
+    else
+        df.pauseBtn:SetText("|cffffff00Break|r")
+    end
+
+    -- Refresh dashboard ad buttons
+    self:RefreshDashboardAds()
+
+    -- Refresh integrated engagement panel (handles sizing + border color)
+    self:RefreshEngagementPanel()
+end
+
+------------------------------------------------------------------------
+-- Dashboard Ad Buttons
+------------------------------------------------------------------------
+function PS:RefreshDashboardAds()
+    if not self.toggleFrame or not self.toggleFrame.dashFrame then return end
+    local df = self.toggleFrame.dashFrame
+    if not df.adContainer then return end
+
+    for _, btn in ipairs(df.adButtons) do btn:Hide() end
+
+    if not self.db.enabled then
+        df.adContainer:Hide()
+        return
+    end
+
+    local profs = self:GetActiveAdProfessions()
+    if #profs == 0 then
+        df.adContainer:Hide()
+        return
+    end
+
+    local SHORT = {
+        ["Enchanting"]="Ench", ["Alchemy"]="Alch", ["Jewelcrafting"]="JC",
+        ["Tailoring"]="Tail", ["Leatherworking"]="LW", ["Blacksmithing"]="BS",
+        ["Engineering"]="Eng", ["Cooking"]="Cook", ["First Aid"]="FA",
+        ["Lockpicking"]="Locks", ["Portals"]="Ports", ["Summons"]="Summ",
+    }
+
+    local x = 0
+    for i, prof in ipairs(profs) do
+        local btn = df.adButtons[i]
+        if not btn then
+            btn = CreateFrame("Button", nil, df.adContainer, "UIPanelButtonTemplate")
+            btn:SetHeight(18)
+            btn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+            df.adButtons[i] = btn
+        end
+        local lbl = SHORT[prof] or prof:sub(1, 5)
+        btn:SetText(lbl)
+        btn:SetWidth(btn:GetFontString():GetStringWidth() + 16)
+        btn:SetPoint("LEFT", df.adContainer, "LEFT", x, 0)
+        btn:Show()
+        btn:SetScript("OnClick", function() PS:BroadcastSingleAd(prof) end)
+        btn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:SetText("Broadcast " .. prof .. " ad")
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        x = x + btn:GetWidth() + 2
+    end
+    df.adContainer:Show()
 end
 
 ------------------------------------------------------------------------
@@ -164,6 +562,12 @@ function PS:CreateAdBar()
 end
 
 function PS:RefreshAdBar()
+    -- Dashboard has its own ad buttons; hide standalone bar when dashboard visible
+    if self.toggleFrame and self.toggleFrame.dashFrame and self.toggleFrame.dashFrame:IsShown() then
+        if self.adBar then self.adBar:Hide() end
+        return
+    end
+
     if not self.adBar then
         self:CreateAdBar()
     end
@@ -240,236 +644,213 @@ function PS:RefreshAdBar()
     maxWidth = x + 2
     bar:SetSize(math.max(maxWidth, 60), BTN_HEIGHT + 8)
     bar:Show()
-
-    -- Re-anchor engagement panel below the ad bar
-    if self.engagementPanel then
-        self.engagementPanel:ClearAllPoints()
-        self.engagementPanel:SetPoint("TOP", bar, "BOTTOM", 0, -1)
-    end
 end
 
 ------------------------------------------------------------------------
--- Engagement Panel  (floating customer list, anchored to toggle frame)
+-- Engagement Panel  (integrated into dashboard right side)
 ------------------------------------------------------------------------
 function PS:CreateEngagementPanel()
-    if self.engagementPanel then return end
-    if not self.toggleFrame then return end
-
-    local f = CreateFrame("Frame", "ProShopEngagementPanel", UIParent, "BackdropTemplate")
-    f:SetSize(320, 40) -- will resize dynamically
-    -- Anchor below ad bar if it exists, otherwise below toggle frame
-    local anchorTo = self.adBar or self.toggleFrame
-    f:SetPoint("TOP", anchorTo, "BOTTOM", 0, -2)
-    f:SetFrameStrata("HIGH")
-    f:SetFrameLevel(100)
-    f:SetClampedToScreen(true)
-
-    f:SetBackdrop({
-        bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    f:SetBackdropColor(0.05, 0.05, 0.05, 0.92)
-    f:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
-
-    -- Header
-    local header = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    header:SetPoint("TOP", f, "TOP", 0, -6)
-    header:SetText("|cffffff00Engagements|r")
-    f.header = header
-
-    -- Clear All button (top-right of panel)
-    local clearBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    clearBtn:SetSize(50, 16)
-    clearBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -6, -3)
-    clearBtn:SetText("Clear")
-    clearBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
-    clearBtn:SetScript("OnClick", function()
-        PS:ClearQueue()
-        PS:Print(PS.C.GOLD .. "Engagements cleared." .. PS.C.R)
-    end)
-    f.clearBtn = clearBtn
-
-    -- Row container
-    f.rows = {}
-
-    f:Hide()
-    self.engagementPanel = f
+    -- Engagement panel is now integrated into the dashboard
+    -- This function is kept as a no-op for backward compatibility
 end
 
 function PS:RefreshEngagementPanel()
-    if not self.engagementPanel then
-        self:CreateEngagementPanel()
-    end
-    if not self.engagementPanel then return end
-
-    local panel = self.engagementPanel
-
-    -- Hide all existing rows
-    for _, row in ipairs(panel.rows) do
-        row:Hide()
-    end
-
-    -- Don't show if shop is closed or queue is empty
-    if not self.db.enabled or #self.queue == 0 then
-        panel:Hide()
+    if not self.toggleFrame or not self.toggleFrame.dashFrame then return end
+    local df = self.toggleFrame.dashFrame
+    local f  = self.toggleFrame
+    if not df:IsShown() then
+        -- Dashboard not visible — just set border for CLOSED state
         return
     end
 
-    local ROW_HEIGHT = 46
-    local PADDING = 6
-    local MAX_MSG_LEN = 45
-    local y = -20
+    -- Hide all existing engagement rows
+    for _, row in ipairs(df.engRows) do row:Hide() end
 
-    for i, customer in ipairs(self.queue) do
-        local row = panel.rows[i]
-        if not row then
-            row = CreateFrame("Frame", nil, panel)
-            row:SetSize(308, ROW_HEIGHT)
+    local DASH_W  = f.DASH_W or 240
+    local ENG_W   = f.ENG_W  or 290
+    local showEng = self.db.toggleFrame.showEngagements ~= false and #self.queue > 0
 
-            -- State indicator dot
-            local dot = row:CreateTexture(nil, "OVERLAY")
-            dot:SetSize(8, 8)
-            dot:SetPoint("TOPLEFT", 4, -6)
-            dot:SetTexture("Interface\\COMMON\\Indicator-Green")
-            row.dot = dot
+    if showEng then
+        -- ── Show engagement section ──────────────────────────────
+        df.vertSep:Show()
+        df.engHeader:Show()
+        df.engClear:Show()
+        df.engHide:Show()
 
-            -- Name + item label
-            local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            nameText:SetPoint("TOPLEFT", 16, -4)
-            nameText:SetPoint("RIGHT", -56, 0)
-            nameText:SetJustifyH("LEFT")
-            row.nameText = nameText
+        local ROW_H       = 44
+        local engContentW  = ENG_W - 16
+        local MAX_MSG_LEN  = 38
+        local y = -24
+
+        for i, customer in ipairs(self.queue) do
+            local row = df.engRows[i]
+            if not row then
+                row = CreateFrame("Frame", nil, df)
+                row:SetSize(engContentW, ROW_H)
+
+                -- State dot
+                local dot = row:CreateTexture(nil, "OVERLAY")
+                dot:SetSize(8, 8)
+                dot:SetPoint("TOPLEFT", 4, -6)
+                dot:SetTexture("Interface\\COMMON\\Indicator-Green")
+                row.dot = dot
+
+                -- Name + item
+                local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                nameText:SetPoint("TOPLEFT", 16, -4)
+                nameText:SetPoint("RIGHT", row, "RIGHT", -54, 0)
+                nameText:SetJustifyH("LEFT")
+                row.nameText = nameText
+
+                -- Original message
+                local msgText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                msgText:SetPoint("TOPLEFT", 16, -17)
+                msgText:SetWidth(engContentW - 20)
+                msgText:SetJustifyH("LEFT")
+                row.msgText = msgText
+
+                -- Invite button
+                local invBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+                invBtn:SetSize(44, 16)
+                invBtn:SetPoint("TOPRIGHT", -2, -3)
+                invBtn:SetText("Invite")
+                invBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+                invBtn:SetScript("OnClick", function()
+                    local c = row.customer
+                    if c and c.name then
+                        PS:InvitePlayer(c.name)
+                        c.state = "INVITED"
+                        PS:RefreshEngagementPanel()
+                    end
+                end)
+                row.invBtn = invBtn
+
+                -- Ignore button
+                local ignBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+                ignBtn:SetSize(44, 14)
+                ignBtn:SetPoint("BOTTOMRIGHT", -50, 2)
+                ignBtn:SetText("Ignore")
+                ignBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+                ignBtn:SetScript("OnClick", function()
+                    local c = row.customer
+                    if c and c.name then
+                        local IGNORE_DURATION = 3600
+                        local cooldown = (PS.db and PS.db.monitor and PS.db.monitor.contactCooldown) or 120
+                        PS.recentContacts[c.name:lower()] = GetTime() + (IGNORE_DURATION - cooldown)
+                        PS:RemoveFromQueue(c.name)
+                        PS:Print(PS.C.GOLD .. c.name .. PS.C.R .. " ignored for 1 hour.")
+                    end
+                end)
+                row.ignBtn = ignBtn
+
+                -- Blacklist button
+                local blBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+                blBtn:SetSize(50, 14)
+                blBtn:SetPoint("BOTTOMRIGHT", -2, 2)
+                blBtn:SetText("Blacklist")
+                blBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+                blBtn:SetScript("OnClick", function()
+                    local c = row.customer
+                    if c and c.name then
+                        PS:RemoveFromQueue(c.name)
+                        PS.db.blacklist[c.name] = true
+                        PS:Print(PS.C.RED .. c.name .. PS.C.R .. " blacklisted.")
+                    end
+                end)
+                row.blBtn = blBtn
+
+                -- Separator
+                local sep = row:CreateTexture(nil, "OVERLAY")
+                sep:SetHeight(1)
+                sep:SetPoint("BOTTOMLEFT", 4, 0)
+                sep:SetPoint("BOTTOMRIGHT", -4, 0)
+                sep:SetColorTexture(0.3, 0.3, 0.3, 0.5)
+                row.sep = sep
+
+                df.engRows[i] = row
+            end
+
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", f, "TOPLEFT", DASH_W + 6, y)
+
+            -- State indicator
+            local stateIcon
+            if customer.state == "IN_PROGRESS" then
+                stateIcon = "Interface\\COMMON\\Indicator-Yellow"
+            elseif customer.state == "COMPLETED" then
+                stateIcon = "Interface\\COMMON\\Indicator-Gray"
+            else
+                stateIcon = "Interface\\COMMON\\Indicator-Green"
+            end
+            row.dot:SetTexture(stateIcon)
+
+            -- State tag
+            local stateTag = ""
+            if customer.state == "IN_PROGRESS" then
+                stateTag = " |cffffff00[serving]|r"
+            elseif customer.state == "INVITED" then
+                stateTag = " |cff888888[invited]|r"
+            elseif customer.state == "BUSY_NOTIFIED" then
+                stateTag = " |cffff8800[busy]|r"
+            end
+
+            row.nameText:SetText(
+                "|cff00ff00" .. customer.name .. "|r" ..
+                " - |cff00ccff" .. (customer.item or customer.profession or "?") .. "|r" ..
+                stateTag
+            )
+
+            row.customer = customer
+            if customer.state == "INVITED" or customer.state == "IN_PROGRESS" or customer.state == "COMPLETED" then
+                row.invBtn:Hide()
+            else
+                row.invBtn:Show()
+            end
 
             -- Original message (truncated)
-            local msgText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            msgText:SetPoint("TOPLEFT", 16, -17)
-            msgText:SetWidth(250)
-            msgText:SetJustifyH("LEFT")
-            row.msgText = msgText
+            local origMsg = customer.originalMessage or ""
+            origMsg = origMsg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H[^|]+|h", ""):gsub("|h", "")
+            if #origMsg > MAX_MSG_LEN then
+                origMsg = origMsg:sub(1, MAX_MSG_LEN) .. "..."
+            end
+            row.msgText:SetText("|cff999999\"" .. origMsg .. "\"|r")
 
-            -- Invite button
-            local invBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-            invBtn:SetSize(50, 18)
-            invBtn:SetPoint("TOPRIGHT", -2, -4)
-            invBtn:SetText("Invite")
-            invBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
-            invBtn:SetScript("OnClick", function()
-                local c = row.customer
-                if c and c.name then
-                    PS:InvitePlayer(c.name)
-                    c.state = "INVITED"
-                    PS:RefreshEngagementPanel()
-                end
-            end)
-            row.invBtn = invBtn
-
-            -- Ignore button (dismiss from queue + 1hr cooldown)
-            local ignBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-            ignBtn:SetSize(46, 16)
-            ignBtn:SetPoint("BOTTOMRIGHT", -52, 3)
-            ignBtn:SetText("Ignore")
-            ignBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
-            ignBtn:SetScript("OnClick", function()
-                local c = row.customer
-                if c and c.name then
-                    -- Set a 1-hour cooldown so they won't trigger again
-                    -- We offset GetTime() forward so IsRecentlyContacted sees it as "just contacted"
-                    -- and the cooldown check (GetTime() - t < cooldown) keeps them blocked for ~1hr
-                    local IGNORE_DURATION = 3600 -- 1 hour
-                    local cooldown = (PS.db and PS.db.monitor and PS.db.monitor.contactCooldown) or 120
-                    PS.recentContacts[c.name:lower()] = GetTime() + (IGNORE_DURATION - cooldown)
-                    PS:RemoveFromQueue(c.name)
-                    PS:Print(PS.C.GOLD .. c.name .. PS.C.R .. " ignored for 1 hour.")
-                end
-            end)
-            row.ignBtn = ignBtn
-
-            -- Blacklist button (dismiss + permanently block)
-            local blBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-            blBtn:SetSize(58, 16)
-            blBtn:SetPoint("BOTTOMRIGHT", -2, 3)
-            blBtn:SetText("Blacklist")
-            blBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
-            blBtn:SetScript("OnClick", function()
-                local c = row.customer
-                if c and c.name then
-                    PS:RemoveFromQueue(c.name)
-                    PS.db.blacklist[c.name] = true
-                    PS:Print(PS.C.RED .. c.name .. PS.C.R .. " blacklisted.")
-                end
-            end)
-            row.blBtn = blBtn
-
-            -- Separator line
-            local sep = row:CreateTexture(nil, "OVERLAY")
-            sep:SetHeight(1)
-            sep:SetPoint("BOTTOMLEFT", 4, 0)
-            sep:SetPoint("BOTTOMRIGHT", -4, 0)
-            sep:SetColorTexture(0.3, 0.3, 0.3, 0.5)
-            row.sep = sep
-
-            panel.rows[i] = row
+            row:Show()
+            y = y - ROW_H
         end
 
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, y)
+        -- Calculate frame size
+        local engH   = 24 + (#self.queue * ROW_H) + 6
+        local frameH = math.max(f.dashHeight, engH)
+        f:SetSize(DASH_W + ENG_W, frameH)
 
-        -- State color
-        local stateColor
-        if customer.state == "IN_PROGRESS" then
-            stateColor = "Interface\\COMMON\\Indicator-Yellow"
-        elseif customer.state == "COMPLETED" then
-            stateColor = "Interface\\COMMON\\Indicator-Gray"
-        elseif customer.state == "INVITED" then
-            stateColor = "Interface\\COMMON\\Indicator-Green"
+        -- Update queue card label with collapse indicator
+        df.cardQueue.label:SetText("|cff888888In Queue \226\151\128|r")
+        df.engShowBtn:Hide()
+    else
+        -- ── Hide engagement section ──────────────────────────────
+        df.vertSep:Hide()
+        df.engHeader:Hide()
+        df.engClear:Hide()
+        df.engHide:Hide()
+        f:SetSize(DASH_W, f.dashHeight)
+
+        -- Update queue card label with expand indicator (only if queue has items)
+        if #self.queue > 0 then
+            df.cardQueue.label:SetText("|cff888888In Queue \226\150\182|r")
+            df.engShowBtn:Show()
         else
-            stateColor = "Interface\\COMMON\\Indicator-Green"
+            df.cardQueue.label:SetText("|cff888888In Queue|r")
+            df.engShowBtn:Hide()
         end
-        row.dot:SetTexture(stateColor)
-
-        -- Name and item
-        local stateTag = ""
-        if customer.state == "IN_PROGRESS" then
-            stateTag = " |cffffff00[serving]|r"
-        elseif customer.state == "INVITED" then
-            stateTag = " |cff888888[invited]|r"
-        elseif customer.state == "BUSY_NOTIFIED" then
-            stateTag = " |cffff8800[busy]|r"
-        end
-
-        row.nameText:SetText(
-            "|cff00ff00" .. customer.name .. "|r" ..
-            " - |cff00ccff" .. (customer.item or customer.profession or "?") .. "|r" ..
-            stateTag
-        )
-
-        -- Store customer ref and show/hide invite button
-        row.customer = customer
-        if customer.state == "INVITED" or customer.state == "IN_PROGRESS" or customer.state == "COMPLETED" then
-            row.invBtn:Hide()
-        else
-            row.invBtn:Show()
-        end
-
-        -- Original message (truncated)
-        local origMsg = customer.originalMessage or ""
-        -- Strip color codes for display
-        origMsg = origMsg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H[^|]+|h", ""):gsub("|h", "")
-        if #origMsg > MAX_MSG_LEN then
-            origMsg = origMsg:sub(1, MAX_MSG_LEN) .. "..."
-        end
-        row.msgText:SetText("|cff999999\"" .. origMsg .. "\"|r")
-
-        row:Show()
-        y = y - ROW_HEIGHT
     end
 
-    -- Resize panel to fit
-    local totalHeight = 24 + (#self.queue * ROW_HEIGHT) + PADDING
-    panel:SetSize(320, totalHeight)
-    panel:Show()
+    -- Border color (paused = yellow, running = green)
+    if self.paused then
+        f:SetBackdropBorderColor(0.8, 0.7, 0.0, 1)
+    elseif self.db.enabled then
+        f:SetBackdropBorderColor(0.0, 0.7, 0.0, 1)
+    end
 end
 
 ------------------------------------------------------------------------
@@ -1059,7 +1440,35 @@ function PS:BuildGeneralTab(parent)
             PS:RefreshAdBar()
         end)
 
-        y = y - 24
+        -- Auto-Invite toggle per profession
+        local aiCb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+        aiCb:SetPoint("LEFT", cbText, "RIGHT", 8, 0)
+        aiCb:SetSize(20, 20)
+
+        local aiLabel = aiCb:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        aiLabel:SetPoint("LEFT", aiCb, "RIGHT", 0, 0)
+        aiLabel:SetText(C.GRAY .. "Auto-Inv" .. C.R)
+
+        local aiActive = PS:IsProfessionAutoInvite(profName)
+        aiCb:SetChecked(aiActive)
+
+        aiCb:SetScript("OnClick", function(self)
+            local checked = self:GetChecked()
+            if not PS.db.autoInviteByProfession then
+                PS.db.autoInviteByProfession = {}
+            end
+            PS.db.autoInviteByProfession[profName] = checked
+            PlaySound(checked and 856 or 857)
+        end)
+        aiCb:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Auto-Invite for " .. profName)
+            GameTooltip:AddLine("When ON: customers are automatically invited (with zone check).\nWhen OFF: customers are queued only — you decide to invite from the engagement panel.", 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        aiCb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        y = y - 26
     end
 
     if #sorted == 0 then

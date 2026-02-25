@@ -455,6 +455,7 @@ PS.ITEM_KEYWORDS = {
     -- LOCKPICKING (requiredSkill = minimum lockpicking skill to open)
     ---------------------
     ["khorium lockbox"]            = { profession = "Lockpicking", item = "Khorium Lockbox", requiredSkill = 325 },
+    ["khorium"]                    = { profession = "Lockpicking", item = "Khorium Lockbox", requiredSkill = 325 },
     ["eternium lockbox"]           = { profession = "Lockpicking", item = "Eternium Lockbox", requiredSkill = 225 },
     ["felsteel lockbox"]           = { profession = "Lockpicking", item = "Felsteel Lockbox", requiredSkill = 300 },
     ["adamantite lockbox"]         = { profession = "Lockpicking", item = "Adamantite Lockbox", requiredSkill = 275 },

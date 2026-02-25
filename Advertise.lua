@@ -173,6 +173,15 @@ function PS:IsProfessionActive(profession)
     return self.professions[profession] ~= nil
 end
 
+-- Check if auto-invite is enabled for a specific profession
+-- Uses per-profession override if set, otherwise falls back to global monitor.autoInvite
+function PS:IsProfessionAutoInvite(profession)
+    if self.db.autoInviteByProfession and self.db.autoInviteByProfession[profession] ~= nil then
+        return self.db.autoInviteByProfession[profession]
+    end
+    return self.db.monitor.autoInvite
+end
+
 -- Check if a profession is enabled for ADVERTISING (broadcast buttons)
 -- Controlled from the Advertise tab. Must also be globally active.
 function PS:IsProfessionAdActive(profession)

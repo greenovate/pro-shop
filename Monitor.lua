@@ -69,6 +69,10 @@ function PS:CHAT_MSG_CHANNEL(text, playerName, languageName, channelName, ...)
         self:Debug("CHAT_MSG_CHANNEL blocked: addon is CLOSED (db.enabled=false)")
         return
     end
+    if self.paused then
+        self:Debug("CHAT_MSG_CHANNEL blocked: shop is PAUSED")
+        return
+    end
     if not self.db.monitor.enabled then
         self:Debug("CHAT_MSG_CHANNEL blocked: monitoring is disabled")
         return
@@ -90,19 +94,64 @@ end
 function PS:CHAT_MSG_SAY(text, playerName, ...)
     if not self.db or not self.db.enabled then return end
     if not self.db.monitor.enabled then return end
+    if self.paused then return end
     self:ProcessChatMessage(text, playerName, "say")
 end
 
 function PS:CHAT_MSG_YELL(text, playerName, ...)
     if not self.db or not self.db.enabled then return end
     if not self.db.monitor.enabled then return end
+    if self.paused then return end
     self:ProcessChatMessage(text, playerName, "yell")
 end
 
 function PS:CHAT_MSG_WHISPER(text, playerName, ...)
     if not self.db or not self.db.enabled then return end
     if not self.db.monitor.enabled then return end
-    self:Debug("Whisper from " .. tostring(playerName) .. ": " .. tostring(text):sub(1, 50))
+    if self.paused then return end
+
+    local cleanSender = Ambiguate(playerName, "short")
+    if cleanSender == self.playerName then return end
+
+    self:Debug("Whisper from " .. tostring(cleanSender) .. ": " .. tostring(text):sub(1, 50))
+
+    -- Handle "inv" / "invite" / "invite me" whispers: always invite (direct request)
+    local lower = text:lower():trim()
+    if lower == "inv" or lower == "invite" or lower == "invite me" or lower == "inv me"
+        or lower == "invite pls" or lower == "inv pls" or lower == "inv plz" then
+        if self:IsBlacklisted(cleanSender) then return end
+        -- If already in queue, just re-invite
+        local existing = self:GetQueuedCustomer(cleanSender)
+        if existing then
+            self:InvitePlayer(cleanSender)
+            existing.state = "INVITED"
+            self:Print(C.GREEN .. cleanSender .. C.R .. " whispered inv — re-invited.")
+            self:RefreshEngagementPanel()
+            return
+        end
+        -- New: invite immediately, queue them too
+        self:InvitePlayer(cleanSender)
+        self:MarkContacted(cleanSender)
+        if #self.queue < self.db.queue.maxSize then
+            local customer = {
+                name = cleanSender,
+                item = "Invite Request",
+                profession = "Unknown",
+                originalMessage = text,
+                matchInfo = { profession = "Unknown", item = "Invite Request", matchType = "whisper" },
+                state = "INVITED",
+                hasMats = nil,
+                addedTime = GetTime(),
+                lastActivity = GetTime(),
+            }
+            table.insert(self.queue, customer)
+            self:RefreshEngagementPanel()
+        end
+        self:Print(C.GREEN .. cleanSender .. C.R .. " whispered inv — invited.")
+        if self.db.monitor.soundAlert then PlaySound(8959) end
+        return
+    end
+
     self:ProcessChatMessage(text, playerName, "whisper")
 end
 
@@ -235,7 +284,7 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
     -- LFG = cross-zone (never auto-invite)
     -- Trade/General = could be cross-zone in TBC, needs /who verification
     local proximitySource = (source == "say" or source == "yell" or source == "whisper")
-    local canAutoInvite = self.db.monitor.autoInvite and (source ~= "lfg")
+    local canAutoInvite = self:IsProfessionAutoInvite(profession) and (source ~= "lfg")
 
     -- Some services don't need mats (skip askMats whisper for these)
     local noMatsProfession = (profession == "Lockpicking" or profession == "Portals" or profession == "Summons")

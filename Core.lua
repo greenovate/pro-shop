@@ -17,6 +17,12 @@ PS.knownRecipes = {}      -- recipe name (lower) -> { name, profession, link }
 PS.queue = {}             -- customer queue entries
 PS.recentContacts = {}    -- anti-spam: lowercase name -> timestamp
 PS.monitoringActive = false
+PS.sessionStartTime = 0   -- GetTime() when session started
+PS.sessionStartEpoch = 0  -- time() when session started
+PS.customersServed = 0    -- customers completed this session
+PS.paused = false         -- take-a-break pause (keeps session alive)
+PS.pausedAt = 0           -- GetTime() when pause started
+PS.totalPausedTime = 0    -- accumulated seconds spent paused
 
 -- Tuning
 PS.CONTACT_COOLDOWN = 120   -- seconds before re-contacting someone
@@ -108,6 +114,8 @@ PS.DEFAULTS = {
         queued     = "You're #{position} in my queue. Sit tight!",
     },
 
+    autoInviteByProfession = {},  -- profession -> true/false override (default: follow global)
+
     busyMode = false,
     blacklist = {},      -- name (capitalized) -> true
 
@@ -128,6 +136,7 @@ PS.DEFAULTS = {
 
     toggleFrame = {
         show = true,
+        showEngagements = true,
         point = "TOP",
         x = 0,
         y = -15,
@@ -337,6 +346,8 @@ function PS:Initialize()
     end)
 
     self.initialized = true
+    self.sessionStartTime = GetTime()
+    self.sessionStartEpoch = time()
     self:Print(C.GOLD .. "v" .. self.VERSION .. C.R .. " loaded! Type " .. C.GREEN .. "/ps" .. C.R .. " for commands.")
 
     -- Auto deep-scan if we have no cached recipes yet
