@@ -210,15 +210,32 @@ function PS:RefreshEngagementPanel()
             -- Name + item label
             local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             nameText:SetPoint("TOPLEFT", 16, -4)
+            nameText:SetPoint("RIGHT", -56, 0)
             nameText:SetJustifyH("LEFT")
             row.nameText = nameText
 
             -- Original message (truncated)
             local msgText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             msgText:SetPoint("TOPLEFT", 16, -17)
-            msgText:SetWidth(290)
+            msgText:SetWidth(250)
             msgText:SetJustifyH("LEFT")
             row.msgText = msgText
+
+            -- Invite button
+            local invBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+            invBtn:SetSize(50, 18)
+            invBtn:SetPoint("TOPRIGHT", -2, -4)
+            invBtn:SetText("Invite")
+            invBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+            invBtn:SetScript("OnClick", function()
+                local c = row.customer
+                if c and c.name then
+                    PS:InvitePlayer(c.name)
+                    c.state = "INVITED"
+                    PS:RefreshEngagementPanel()
+                end
+            end)
+            row.invBtn = invBtn
 
             -- Separator line
             local sep = row:CreateTexture(nil, "OVERLAY")
@@ -262,6 +279,14 @@ function PS:RefreshEngagementPanel()
             " - |cff00ccff" .. (customer.item or customer.profession or "?") .. "|r" ..
             stateTag
         )
+
+        -- Store customer ref and show/hide invite button
+        row.customer = customer
+        if customer.state == "INVITED" or customer.state == "IN_PROGRESS" or customer.state == "COMPLETED" then
+            row.invBtn:Hide()
+        else
+            row.invBtn:Show()
+        end
 
         -- Original message (truncated)
         local origMsg = customer.originalMessage or ""
