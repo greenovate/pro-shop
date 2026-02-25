@@ -95,7 +95,7 @@ PS.DEFAULTS = {
     whispers = {
         greeting   = "Hey! I saw you're looking for {item}. I can help with that!",
         askMats    = "Do you have the mats, or do you need me to provide them?",
-        thanks     = "Thanks for choosing {player}'s Pro Shop! Enjoy!",
+        thanks     = "Thank you for choosing {player}'s Pro-Shop! Have a great day!",
         busy       = "Hey! I can do that but I'm a bit busy right now. I'll get to you shortly!",
         queued     = "You're #{position} in my queue. Sit tight!",
     },
@@ -254,7 +254,12 @@ function PS:ADDON_LOADED(addon)
 
     -- Migrate old thanks whisper that was missing {player}
     if self.db.whispers.thanks and not self.db.whispers.thanks:find("{player}") then
-        self.db.whispers.thanks = self.DEFAULTS.whispers.thanks
+        -- Insert {player}'s before Pro-Shop / Pro Shop in whatever custom text they have
+        self.db.whispers.thanks = self.db.whispers.thanks:gsub("Pro%-Shop", "{player}'s Pro-Shop"):gsub("Pro Shop", "{player}'s Pro-Shop")
+        -- If still no {player} (completely custom text), just use the new default
+        if not self.db.whispers.thanks:find("{player}") then
+            self.db.whispers.thanks = self.DEFAULTS.whispers.thanks
+        end
     end
 
     -- Create minimap button early so collectors (ElvUI, MBB, etc.) can find it
