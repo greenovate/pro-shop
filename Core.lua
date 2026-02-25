@@ -95,7 +95,7 @@ PS.DEFAULTS = {
     whispers = {
         greeting   = "Hey! I saw you're looking for {item}. I can help with that!",
         askMats    = "Do you have the mats, or do you need me to provide them?",
-        thanks     = "Thanks for choosing Pro Shop! Enjoy!",
+        thanks     = "Thanks for choosing {player}'s Pro Shop! Enjoy!",
         busy       = "Hey! I can do that but I'm a bit busy right now. I'll get to you shortly!",
         queued     = "You're #{position} in my queue. Sit tight!",
     },

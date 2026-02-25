@@ -372,6 +372,9 @@ function PS:WhisperCustomer(playerName, templateKey, replacements)
         end
     end
 
+    -- Always replace {player} with our character name
+    msg = msg:gsub("{player}", self.playerName or UnitName("player"))
+
     -- Replace queue position if needed
     local pos = self:GetQueuePosition(playerName)
     if pos then
