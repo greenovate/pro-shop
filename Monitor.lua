@@ -394,6 +394,10 @@ function PS:WhisperCustomer(playerName, templateKey, replacements)
     -- Always replace {player} with our character name
     msg = msg:gsub("{player}", self.playerName or UnitName("player"))
 
+    -- Replace {zone} with current zone name
+    local zoneName = GetRealZoneText and GetRealZoneText() or GetZoneText and GetZoneText() or "unknown"
+    msg = msg:gsub("{zone}", zoneName)
+
     -- Replace queue position if needed
     local pos = self:GetQueuePosition(playerName)
     if pos then

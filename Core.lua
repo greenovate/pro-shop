@@ -101,7 +101,7 @@ PS.DEFAULTS = {
     },
 
     whispers = {
-        greeting   = "Hey! I saw you're looking for {item}. I can help with that!",
+        greeting   = "Hey! I saw you're looking for {item}. I can help with that! I'm in {zone}.",
         askMats    = "Do you have the mats, or do you need me to provide them?",
         thanks     = "Thank you for choosing {player}'s Pro-Shop! Have a great day!",
         busy       = "Hey! I can do that but I'm a bit busy right now. I'll get to you shortly!",
@@ -267,6 +267,13 @@ function PS:ADDON_LOADED(addon)
         -- If still no {player} (completely custom text), just use the new default
         if not self.db.whispers.thanks:find("{player}") then
             self.db.whispers.thanks = self.DEFAULTS.whispers.thanks
+        end
+    end
+
+    -- Migrate greeting to include {zone} if it's still the old default
+    if self.db.whispers.greeting and not self.db.whispers.greeting:find("{zone}") then
+        if self.db.whispers.greeting:find("I can help with that!%s*$") then
+            self.db.whispers.greeting = self.db.whispers.greeting:gsub("I can help with that!%s*$", "I can help with that! I'm in {zone}.")
         end
     end
 
