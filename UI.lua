@@ -163,6 +163,18 @@ function PS:CreateEngagementPanel()
     header:SetText("|cffffff00Engagements|r")
     f.header = header
 
+    -- Clear All button (top-right of panel)
+    local clearBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    clearBtn:SetSize(50, 16)
+    clearBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -6, -3)
+    clearBtn:SetText("Clear")
+    clearBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+    clearBtn:SetScript("OnClick", function()
+        PS:ClearQueue()
+        PS:Print(PS.C.GOLD .. "Engagements cleared." .. PS.C.R)
+    end)
+    f.clearBtn = clearBtn
+
     -- Row container
     f.rows = {}
 
@@ -237,7 +249,7 @@ function PS:RefreshEngagementPanel()
             end)
             row.invBtn = invBtn
 
-            -- Ignore button (dismiss from queue)
+            -- Ignore button (dismiss from queue + 1hr cooldown)
             local ignBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
             ignBtn:SetSize(46, 16)
             ignBtn:SetPoint("BOTTOMRIGHT", -52, 3)
@@ -246,8 +258,14 @@ function PS:RefreshEngagementPanel()
             ignBtn:SetScript("OnClick", function()
                 local c = row.customer
                 if c and c.name then
+                    -- Set a 1-hour cooldown so they won't trigger again
+                    -- We offset GetTime() forward so IsRecentlyContacted sees it as "just contacted"
+                    -- and the cooldown check (GetTime() - t < cooldown) keeps them blocked for ~1hr
+                    local IGNORE_DURATION = 3600 -- 1 hour
+                    local cooldown = (PS.db and PS.db.monitor and PS.db.monitor.contactCooldown) or 120
+                    PS.recentContacts[c.name:lower()] = GetTime() + (IGNORE_DURATION - cooldown)
                     PS:RemoveFromQueue(c.name)
-                    PS:Print(PS.C.GOLD .. c.name .. PS.C.R .. " dismissed.")
+                    PS:Print(PS.C.GOLD .. c.name .. PS.C.R .. " ignored for 1 hour.")
                 end
             end)
             row.ignBtn = ignBtn
