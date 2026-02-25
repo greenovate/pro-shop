@@ -19,6 +19,7 @@ function PS:StartMonitoring()
     self:RegisterEvent("CHAT_MSG_CHANNEL")
     self:RegisterEvent("CHAT_MSG_SAY")      -- optional: nearby chat
     self:RegisterEvent("CHAT_MSG_YELL")     -- optional: yell
+    self:RegisterEvent("CHAT_MSG_WHISPER")  -- direct whisper requests
     self:RegisterEvent("WHO_LIST_UPDATE")
 
     self.monitoringActive = true
@@ -31,6 +32,7 @@ function PS:StopMonitoring()
     self:UnregisterEvent("CHAT_MSG_CHANNEL")
     self:UnregisterEvent("CHAT_MSG_SAY")
     self:UnregisterEvent("CHAT_MSG_YELL")
+    self:UnregisterEvent("CHAT_MSG_WHISPER")
     self:UnregisterEvent("WHO_LIST_UPDATE")
 
     self.monitoringActive = false
@@ -97,6 +99,13 @@ function PS:CHAT_MSG_YELL(text, playerName, ...)
     self:ProcessChatMessage(text, playerName, "yell")
 end
 
+function PS:CHAT_MSG_WHISPER(text, playerName, ...)
+    if not self.db or not self.db.enabled then return end
+    if not self.db.monitor.enabled then return end
+    self:Debug("Whisper from " .. tostring(playerName) .. ": " .. tostring(text):sub(1, 50))
+    self:ProcessChatMessage(text, playerName, "whisper")
+end
+
 ------------------------------------------------------------------------
 -- Core Message Processing
 ------------------------------------------------------------------------
@@ -132,14 +141,15 @@ function PS:ProcessChatMessage(text, senderName, source)
     -- Strip item links for plain text matching, but keep original for display
     local plainText = self:StripLinks(text)
 
-    -- Step 0: Ignore WTS / selling messages immediately
-    if self:ShouldIgnoreMessage(plainText) then
+    -- Step 0: Ignore WTS / selling messages immediately (skip for whispers — direct requests)
+    if source ~= "whisper" and self:ShouldIgnoreMessage(plainText) then
         self:Debug("Ignored (selling/WTS): " .. plainText:sub(1, 60))
         return
     end
 
     -- Step 1: Check if message contains a request pattern
-    local hasRequest = self:HasRequestPattern(plainText)
+    -- Whispers are always treated as direct requests (no prefix needed)
+    local hasRequest = (source == "whisper") or self:HasRequestPattern(plainText)
 
     if not hasRequest then
         -- Even without a request prefix, check for very specific item keywords
@@ -221,9 +231,10 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
     self:UpdateCustomerHistory(playerName)
 
     -- Determine invite eligibility
-    -- Say/Yell = proximity (always same zone), LFG = cross-zone (never auto-invite)
+    -- Say/Yell/Whisper = proximity (always same zone or direct request)
+    -- LFG = cross-zone (never auto-invite)
     -- Trade/General = could be cross-zone in TBC, needs /who verification
-    local proximitySource = (source == "say" or source == "yell")
+    local proximitySource = (source == "say" or source == "yell" or source == "whisper")
     local canAutoInvite = self.db.monitor.autoInvite and (source ~= "lfg")
 
     -- Some services don't need mats (skip askMats whisper for these)
