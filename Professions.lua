@@ -32,6 +32,7 @@ local SECONDARY_PROFESSIONS = {
 local CLASS_SERVICES = {
     ["MAGE"]    = "Portals",
     ["WARLOCK"] = "Summons",
+    ["ROGUE"]   = "Lockpicking",
 }
 
 local ALL_PROFESSIONS = {}
@@ -116,20 +117,31 @@ function PS:ScanProfessions()
         self:Debug("No professions detected yet. Try opening your Skills (K) window.")
     end
 
-    -- Detect class-based services (Mage Portals, Warlock Summons)
+    -- Detect class-based services (Mage Portals, Warlock Summons, Rogue Lockpicking)
     local _, playerClass = UnitClass("player")
     if playerClass and CLASS_SERVICES[playerClass] then
         local serviceName = CLASS_SERVICES[playerClass]
         if not self.professions[serviceName] then
             local level = UnitLevel("player") or 1
+            -- For Lockpicking, try to get actual skill level from skill lines
+            local serviceSkill = level
+            if serviceName == "Lockpicking" then
+                for i = 1, (GetNumSkillLines and GetNumSkillLines() or 0) do
+                    local sName, sHeader, _, sRank = GetSkillLineInfo(i)
+                    if sName == "Lockpicking" and not sHeader then
+                        serviceSkill = sRank or level
+                        break
+                    end
+                end
+            end
             self.professions[serviceName] = {
-                skill = level,
-                maxSkill = level,
+                skill = serviceSkill,
+                maxSkill = serviceSkill,
                 numRecipes = 0,
                 isPrimary = false,
                 isClassService = true,
             }
-            self:Print(C.GREEN .. "Class service detected: " .. C.CYAN .. serviceName .. C.R)
+            self:Print(C.GREEN .. "Class service detected: " .. C.CYAN .. serviceName .. " (" .. serviceSkill .. ")" .. C.R)
         end
     end
 

@@ -398,6 +398,8 @@ SlashCmdList["PROSHOP"] = function(msg)
         PS:PrintCooldowns()
     elseif cmd == "status" then
         PS:PrintStatus()
+    elseif cmd == "diag" then
+        PS:PrintDiag()
     elseif cmd == "monitor" then
         PS.db.monitor.enabled = not PS.db.monitor.enabled
         if PS.db.monitor.enabled then
@@ -432,6 +434,7 @@ function PS:PrintHelp()
         { "/ps tips",         "Show tip statistics" },
         { "/ps cd",           "Show profession cooldowns" },
         { "/ps status",       "Show current status" },
+        { "/ps diag",         "Dump diagnostics (professions, flags)" },
         { "/ps monitor",      "Toggle chat monitoring" },
         { "/ps debug",        "Toggle debug output" },
     }
@@ -461,6 +464,42 @@ function PS:PrintStatus()
     end
 end
 
+function PS:PrintDiag()
+    self:Print(C.GOLD .. "=== Diagnostics ===" .. C.R)
+    self:Print("  enabled: " .. tostring(self.db.enabled))
+    self:Print("  monitor.enabled: " .. tostring(self.db.monitor.enabled))
+    self:Print("  monitoringActive: " .. tostring(self.monitoringActive))
+    self:Print("  tradeChat: " .. tostring(self.db.monitor.tradeChat))
+    self:Print("  generalChat: " .. tostring(self.db.monitor.generalChat))
+    self:Print("  lfgChat: " .. tostring(self.db.monitor.lfgChat))
+    self:Print("  autoInvite: " .. tostring(self.db.monitor.autoInvite))
+    self:Print("  autoWhisper: " .. tostring(self.db.monitor.autoWhisper))
+
+    -- Detected professions
+    self:Print(C.GOLD .. "  -- Detected Professions --" .. C.R)
+    if next(self.professions) then
+        for name, data in pairs(self.professions) do
+            local skill = data.skill or "?"
+            local active = self:IsProfessionActive(name)
+            self:Print("    " .. C.CYAN .. name .. C.R ..
+                " skill=" .. tostring(skill) ..
+                " active=" .. (active and C.GREEN .. "YES" or C.RED .. "NO") .. C.R)
+        end
+    else
+        self:Print("    " .. C.RED .. "NONE - run /ps scan" .. C.R)
+    end
+
+    -- Active professions saved state
+    if self.db.activeProfessions and next(self.db.activeProfessions) then
+        self:Print(C.GOLD .. "  -- activeProfessions (saved) --" .. C.R)
+        for name, val in pairs(self.db.activeProfessions) do
+            self:Print("    " .. name .. " = " .. tostring(val))
+        end
+    end
+
+    -- Queue
+    self:Print("  Queue: " .. #self.queue .. "/" .. self.db.queue.maxSize)
+end
 function PS:ToggleBlacklist(name)
     name = name:sub(1,1):upper() .. name:sub(2):lower()
     if self.db.blacklist[name] then
