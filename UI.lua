@@ -189,9 +189,9 @@ function PS:RefreshEngagementPanel()
         return
     end
 
-    local ROW_HEIGHT = 36
+    local ROW_HEIGHT = 46
     local PADDING = 6
-    local MAX_MSG_LEN = 55
+    local MAX_MSG_LEN = 45
     local y = -20
 
     for i, customer in ipairs(self.queue) do
@@ -236,6 +236,37 @@ function PS:RefreshEngagementPanel()
                 end
             end)
             row.invBtn = invBtn
+
+            -- Ignore button (dismiss from queue)
+            local ignBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+            ignBtn:SetSize(46, 16)
+            ignBtn:SetPoint("BOTTOMRIGHT", -52, 3)
+            ignBtn:SetText("Ignore")
+            ignBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+            ignBtn:SetScript("OnClick", function()
+                local c = row.customer
+                if c and c.name then
+                    PS:RemoveFromQueue(c.name)
+                    PS:Print(PS.C.GOLD .. c.name .. PS.C.R .. " dismissed.")
+                end
+            end)
+            row.ignBtn = ignBtn
+
+            -- Blacklist button (dismiss + permanently block)
+            local blBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+            blBtn:SetSize(58, 16)
+            blBtn:SetPoint("BOTTOMRIGHT", -2, 3)
+            blBtn:SetText("Blacklist")
+            blBtn:GetFontString():SetFont(GameFontNormalSmall:GetFont())
+            blBtn:SetScript("OnClick", function()
+                local c = row.customer
+                if c and c.name then
+                    PS:RemoveFromQueue(c.name)
+                    PS.db.blacklist[c.name] = true
+                    PS:Print(PS.C.RED .. c.name .. PS.C.R .. " blacklisted.")
+                end
+            end)
+            row.blBtn = blBtn
 
             -- Separator line
             local sep = row:CreateTexture(nil, "OVERLAY")
