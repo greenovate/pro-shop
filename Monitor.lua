@@ -480,41 +480,10 @@ end
 -- Zone Check via /who before inviting
 ------------------------------------------------------------------------
 function PS:ZoneCheckAndInvite(playerName)
-    -- Store pending invite
-    self.pendingInvites[playerName] = {
-        timestamp = GetTime(),
-    }
-
-    -- Suppress the /who results from showing in chat
-    if SetWhoToUI then
-        pcall(SetWhoToUI, true)
-    end
-
-    -- Send /who query for this specific player (protected in Anniversary Classic)
-    local query = "n-\"" .. playerName .. "\""
-    local ok = false
-    if C_FriendList and C_FriendList.SendWho then
-        ok = pcall(C_FriendList.SendWho, query)
-    end
-    if not ok and SendWho then
-        ok = pcall(SendWho, query)
-    end
-    if not ok then
-        -- /who blocked, skip zone check and just invite directly
-        self.pendingInvites[playerName] = nil
-        self:InvitePlayer(playerName)
-        self:Debug("SendWho blocked, inviting " .. playerName .. " without zone check")
-        return
-    end
-    self:Debug("Sent /who for zone check: " .. playerName)
-
-    -- Timeout: if we don't get a response in 5 seconds, skip the invite
-    C_Timer.After(5, function()
-        if PS.pendingInvites[playerName] then
-            PS.pendingInvites[playerName] = nil
-            PS:Debug("Zone check timed out for " .. playerName .. ", skipping invite.")
-        end
-    end)
+    -- SendWho is fully protected in Anniversary Classic, so we can't do
+    -- zone verification. Just invite directly.
+    self:InvitePlayer(playerName)
+    self:Debug("ZoneCheckAndInvite: inviting " .. playerName .. " directly (SendWho protected)")
 end
 
 function PS:WHO_LIST_UPDATE()
@@ -592,22 +561,10 @@ end
 -- Lookup player class + level via /who
 ------------------------------------------------------------------------
 function PS:LookupPlayerInfo(playerName)
-    -- Try to get class/level via /who — optional, group roster is primary source
-    -- SendWho is protected in Anniversary Classic; pcall to avoid ADDON_ACTION_BLOCKED
-    if not self._pendingLookups then self._pendingLookups = {} end
-    self._pendingLookups[playerName] = true
-    if SetWhoToUI then pcall(SetWhoToUI, true) end
-    local query = 'n-"' .. playerName .. '"'
-    local ok = false
-    if C_FriendList and C_FriendList.SendWho then
-        ok = pcall(C_FriendList.SendWho, query)
-    end
-    if not ok and SendWho then
-        ok = pcall(SendWho, query)
-    end
-    if not ok then
-        self:Debug("SendWho blocked (protected) for " .. playerName)
-    end
+    -- SendWho is fully protected in Anniversary Classic (triggers ADDON_ACTION_BLOCKED
+    -- even through pcall). Class/level is obtained from group roster and trade window instead.
+    self:Debug("LookupPlayerInfo: skipping /who (protected), will get info from group roster")
+end
     C_Timer.After(5, function()
         if PS._pendingLookups then PS._pendingLookups[playerName] = nil end
     end)
