@@ -219,6 +219,18 @@ PS.IGNORE_PATTERNS = {
     "have%s+all%s+recipe",  -- "have all recipes"
     "have%s+all%s+pattern", -- "have all patterns"
     "max%s+lock%s*pick",   -- "max lockpicking" (advertising skill level)
+    -- Mage portal sellers (competing mages advertising their services)
+    "^port[sz]?%s+to%s",       -- "Ports to Shatt/SW/Org..." (offering)
+    "^port[sz]?%s+available",  -- "Ports available"
+    "^portal[sz]?%s+to%s",    -- "Portals to Shatt..."
+    "^portal[sz]?%s+available", -- "Portals available"
+    "selling%s+port",          -- "selling ports/portals"
+    "port[sz]?%s+open",        -- "ports open" (offering)
+    "portal[sz]?%s+open",      -- "portals open" (offering)
+    "port[sz]?%s+up",          -- "ports up" / "port up"
+    "portal[sz]?%s+up",        -- "portals up" / "portal up"
+    "port[sz]?%s+%d+[gs]",     -- "ports 1g" (price listed)
+    "portal[sz]?%s+%d+[gs]",   -- "portals 5g" (price listed)
 }
 
 ------------------------------------------------------------------------
@@ -471,41 +483,139 @@ PS.ITEM_KEYWORDS = {
     ---------------------
     -- MAGE PORTALS
     ---------------------
+    -- Shattrath
     ["portal shattrath"]           = { profession = "Portals", item = "Portal: Shattrath" },
     ["port shattrath"]             = { profession = "Portals", item = "Portal: Shattrath" },
     ["port shatt"]                 = { profession = "Portals", item = "Portal: Shattrath" },
     ["portal shatt"]               = { profession = "Portals", item = "Portal: Shattrath" },
+    ["port shat"]                  = { profession = "Portals", item = "Portal: Shattrath" },
+    ["portal shat"]                = { profession = "Portals", item = "Portal: Shattrath" },
+    ["port to shattrath"]          = { profession = "Portals", item = "Portal: Shattrath" },
+    ["port to shatt"]              = { profession = "Portals", item = "Portal: Shattrath" },
+    ["port to shat"]               = { profession = "Portals", item = "Portal: Shattrath" },
+    ["portal to shattrath"]        = { profession = "Portals", item = "Portal: Shattrath" },
+    ["portal to shatt"]            = { profession = "Portals", item = "Portal: Shattrath" },
+    ["portal to shat"]             = { profession = "Portals", item = "Portal: Shattrath" },
+    -- Stormwind
     ["portal stormwind"]           = { profession = "Portals", item = "Portal: Stormwind" },
     ["port stormwind"]             = { profession = "Portals", item = "Portal: Stormwind" },
     ["port sw"]                    = { profession = "Portals", item = "Portal: Stormwind" },
     ["portal sw"]                  = { profession = "Portals", item = "Portal: Stormwind" },
+    ["port to stormwind"]          = { profession = "Portals", item = "Portal: Stormwind" },
+    ["port to sw"]                 = { profession = "Portals", item = "Portal: Stormwind" },
+    ["portal to stormwind"]        = { profession = "Portals", item = "Portal: Stormwind" },
+    ["portal to sw"]               = { profession = "Portals", item = "Portal: Stormwind" },
+    ["port storm"]                 = { profession = "Portals", item = "Portal: Stormwind" },
+    ["portal storm"]               = { profession = "Portals", item = "Portal: Stormwind" },
+    -- Ironforge
     ["portal ironforge"]           = { profession = "Portals", item = "Portal: Ironforge" },
     ["port ironforge"]             = { profession = "Portals", item = "Portal: Ironforge" },
     ["port if"]                    = { profession = "Portals", item = "Portal: Ironforge" },
     ["portal if"]                  = { profession = "Portals", item = "Portal: Ironforge" },
+    ["port to ironforge"]          = { profession = "Portals", item = "Portal: Ironforge" },
+    ["port to if"]                 = { profession = "Portals", item = "Portal: Ironforge" },
+    ["portal to ironforge"]        = { profession = "Portals", item = "Portal: Ironforge" },
+    ["portal to if"]               = { profession = "Portals", item = "Portal: Ironforge" },
+    -- Darnassus
     ["portal darnassus"]           = { profession = "Portals", item = "Portal: Darnassus" },
     ["port darnassus"]             = { profession = "Portals", item = "Portal: Darnassus" },
     ["port darn"]                  = { profession = "Portals", item = "Portal: Darnassus" },
+    ["port to darnassus"]          = { profession = "Portals", item = "Portal: Darnassus" },
+    ["port to darn"]               = { profession = "Portals", item = "Portal: Darnassus" },
+    ["portal to darnassus"]        = { profession = "Portals", item = "Portal: Darnassus" },
+    ["portal to darn"]             = { profession = "Portals", item = "Portal: Darnassus" },
+    -- Exodar
     ["portal exodar"]              = { profession = "Portals", item = "Portal: Exodar" },
     ["port exodar"]                = { profession = "Portals", item = "Portal: Exodar" },
+    ["port to exodar"]             = { profession = "Portals", item = "Portal: Exodar" },
+    ["portal to exodar"]           = { profession = "Portals", item = "Portal: Exodar" },
+    ["port exo"]                   = { profession = "Portals", item = "Portal: Exodar" },
+    ["port to exo"]                = { profession = "Portals", item = "Portal: Exodar" },
+    -- Orgrimmar
     ["portal orgrimmar"]           = { profession = "Portals", item = "Portal: Orgrimmar" },
     ["port orgrimmar"]             = { profession = "Portals", item = "Portal: Orgrimmar" },
     ["port org"]                   = { profession = "Portals", item = "Portal: Orgrimmar" },
     ["portal org"]                 = { profession = "Portals", item = "Portal: Orgrimmar" },
+    ["port to orgrimmar"]          = { profession = "Portals", item = "Portal: Orgrimmar" },
+    ["port to org"]                = { profession = "Portals", item = "Portal: Orgrimmar" },
+    ["portal to orgrimmar"]        = { profession = "Portals", item = "Portal: Orgrimmar" },
+    ["portal to org"]              = { profession = "Portals", item = "Portal: Orgrimmar" },
+    -- Undercity
     ["portal undercity"]           = { profession = "Portals", item = "Portal: Undercity" },
     ["port undercity"]             = { profession = "Portals", item = "Portal: Undercity" },
     ["port uc"]                    = { profession = "Portals", item = "Portal: Undercity" },
     ["portal uc"]                  = { profession = "Portals", item = "Portal: Undercity" },
+    ["port to undercity"]          = { profession = "Portals", item = "Portal: Undercity" },
+    ["port to uc"]                 = { profession = "Portals", item = "Portal: Undercity" },
+    ["portal to undercity"]        = { profession = "Portals", item = "Portal: Undercity" },
+    ["portal to uc"]               = { profession = "Portals", item = "Portal: Undercity" },
+    -- Thunder Bluff
     ["portal thunder bluff"]       = { profession = "Portals", item = "Portal: Thunder Bluff" },
     ["port thunder bluff"]         = { profession = "Portals", item = "Portal: Thunder Bluff" },
     ["port tb"]                    = { profession = "Portals", item = "Portal: Thunder Bluff" },
+    ["port to thunder bluff"]      = { profession = "Portals", item = "Portal: Thunder Bluff" },
+    ["port to tb"]                 = { profession = "Portals", item = "Portal: Thunder Bluff" },
+    ["portal to thunder bluff"]    = { profession = "Portals", item = "Portal: Thunder Bluff" },
+    ["portal to tb"]               = { profession = "Portals", item = "Portal: Thunder Bluff" },
+    -- Silvermoon
     ["portal silvermoon"]          = { profession = "Portals", item = "Portal: Silvermoon" },
     ["port silvermoon"]            = { profession = "Portals", item = "Portal: Silvermoon" },
     ["port smc"]                   = { profession = "Portals", item = "Portal: Silvermoon" },
+    ["port to silvermoon"]         = { profession = "Portals", item = "Portal: Silvermoon" },
+    ["port to smc"]                = { profession = "Portals", item = "Portal: Silvermoon" },
+    ["portal to silvermoon"]       = { profession = "Portals", item = "Portal: Silvermoon" },
+    ["portal to smc"]              = { profession = "Portals", item = "Portal: Silvermoon" },
+    ["port sm"]                    = { profession = "Portals", item = "Portal: Silvermoon" },
+    ["port to sm"]                 = { profession = "Portals", item = "Portal: Silvermoon" },
+    -- Stonard
     ["portal stonard"]             = { profession = "Portals", item = "Portal: Stonard" },
     ["port stonard"]               = { profession = "Portals", item = "Portal: Stonard" },
+    ["port ston"]                  = { profession = "Portals", item = "Portal: Stonard" },
+    ["port stone"]                 = { profession = "Portals", item = "Portal: Stonard" },
+    ["port to stonard"]            = { profession = "Portals", item = "Portal: Stonard" },
+    ["port to ston"]               = { profession = "Portals", item = "Portal: Stonard" },
+    ["port to stone"]              = { profession = "Portals", item = "Portal: Stonard" },
+    ["portal to stonard"]          = { profession = "Portals", item = "Portal: Stonard" },
+    ["portal to ston"]             = { profession = "Portals", item = "Portal: Stonard" },
+    ["port blasted"]               = { profession = "Portals", item = "Portal: Stonard" },
+    ["port to blasted"]            = { profession = "Portals", item = "Portal: Stonard" },
+    ["port outland"]               = { profession = "Portals", item = "Portal: Stonard" },
+    ["port to outland"]            = { profession = "Portals", item = "Portal: Stonard" },
+    ["port outlands"]              = { profession = "Portals", item = "Portal: Stonard" },
+    ["port to outlands"]           = { profession = "Portals", item = "Portal: Stonard" },
+    ["portal outland"]             = { profession = "Portals", item = "Portal: Stonard" },
+    ["portal outlands"]            = { profession = "Portals", item = "Portal: Stonard" },
+    ["portal to outland"]          = { profession = "Portals", item = "Portal: Stonard" },
+    ["portal to outlands"]         = { profession = "Portals", item = "Portal: Stonard" },
+    -- Theramore
     ["portal theramore"]           = { profession = "Portals", item = "Portal: Theramore" },
     ["port theramore"]             = { profession = "Portals", item = "Portal: Theramore" },
+    ["port thera"]                 = { profession = "Portals", item = "Portal: Theramore" },
+    ["port to theramore"]          = { profession = "Portals", item = "Portal: Theramore" },
+    ["port to thera"]              = { profession = "Portals", item = "Portal: Theramore" },
+    ["portal to theramore"]        = { profession = "Portals", item = "Portal: Theramore" },
+    ["portal to thera"]            = { profession = "Portals", item = "Portal: Theramore" },
+    -- Food & Water (mage conjured)
+    ["mage food"]                  = { profession = "Portals", item = "Conjured Food" },
+    ["mage water"]                 = { profession = "Portals", item = "Conjured Water" },
+    ["mage food and water"]        = { profession = "Portals", item = "Conjured Food & Water" },
+    ["mage food water"]            = { profession = "Portals", item = "Conjured Food & Water" },
+    ["conjure food"]               = { profession = "Portals", item = "Conjured Food" },
+    ["conjure water"]              = { profession = "Portals", item = "Conjured Water" },
+    ["conjured food"]              = { profession = "Portals", item = "Conjured Food" },
+    ["conjured water"]             = { profession = "Portals", item = "Conjured Water" },
+    ["free food"]                  = { profession = "Portals", item = "Conjured Food" },
+    ["free water"]                 = { profession = "Portals", item = "Conjured Water" },
+    ["food and water"]             = { profession = "Portals", item = "Conjured Food & Water" },
+    ["food water"]                 = { profession = "Portals", item = "Conjured Food & Water" },
+    ["food pls"]                   = { profession = "Portals", item = "Conjured Food" },
+    ["water pls"]                  = { profession = "Portals", item = "Conjured Water" },
+    ["food plz"]                   = { profession = "Portals", item = "Conjured Food" },
+    ["water plz"]                  = { profession = "Portals", item = "Conjured Water" },
+    ["can i get food"]             = { profession = "Portals", item = "Conjured Food" },
+    ["can i get water"]            = { profession = "Portals", item = "Conjured Water" },
+    ["got food"]                   = { profession = "Portals", item = "Conjured Food" },
+    ["got water"]                  = { profession = "Portals", item = "Conjured Water" },
 }
 
 ------------------------------------------------------------------------

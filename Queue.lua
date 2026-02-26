@@ -18,6 +18,7 @@ PS.STATE = {
     IN_PROGRESS    = "IN_PROGRESS",
     COMPLETED      = "COMPLETED",
     BUSY_NOTIFIED  = "BUSY_NOTIFIED",
+    LEFT_GROUP     = "LEFT_GROUP",
 }
 
 ------------------------------------------------------------------------
@@ -150,6 +151,13 @@ function PS:CleanupQueue()
         if customer.state == PS.STATE.COMPLETED then
             table.insert(removed, customer.name)
             table.remove(self.queue, i)
+        elseif customer.state == PS.STATE.LEFT_GROUP then
+            -- Don't auto-remove bailed customers — keep for blacklisting
+            -- Only remove if they've been sitting there for 10+ minutes
+            if (now - customer.lastActivity) > 600 then
+                table.insert(removed, customer.name .. " (bailed, expired)")
+                table.remove(self.queue, i)
+            end
         elseif (now - customer.lastActivity) > timeout and customer.state ~= PS.STATE.IN_PROGRESS then
             table.insert(removed, customer.name .. " (timeout)")
             table.remove(self.queue, i)
@@ -222,6 +230,11 @@ function PS:CHAT_MSG_WHISPER(text, senderName, ...)
     local customer = self:GetQueuedCustomer(cleanSender)
 
     if not customer then return end -- Not from a queued customer
+
+    -- Skip processing if customer already traded/completed/left
+    if customer.tradedGold or customer.state == PS.STATE.COMPLETED or customer.state == PS.STATE.LEFT_GROUP then
+        return
+    end
 
     customer.lastActivity = GetTime()
     local lower = text:lower()
@@ -301,10 +314,127 @@ function PS:CHAT_MSG_WHISPER(text, senderName, ...)
             customer.state = PS.STATE.WAITING_MATS
         end
     end
+
+    -- Portal destination update: scan whispers from portal customers for destination keywords
+    if customer.profession == "Portals" and not customer.portalSpell then
+        local dest = PS:MatchDestinationKeyword(lower)
+        if dest then
+            customer.portalSpell = dest
+            customer.item = dest
+            self:Print(C.CYAN .. customer.name .. C.R .. " wants " .. C.GREEN .. dest .. C.R)
+            self:RefreshEngagementPanel()
+        end
+    end
 end
 
 ------------------------------------------------------------------------
--- Trade Window Tracking (for tip detection)
+-- Destination keyword matching for portal customers
+-- Used to update portal destination from whisper/party chat after
+-- initial detection (e.g. customer says "shatt" after generic "port" request)
+------------------------------------------------------------------------
+PS.DESTINATION_KEYWORDS = {
+    -- Shattrath
+    ["shattrath"]   = "Portal: Shattrath",
+    ["shatt"]       = "Portal: Shattrath",
+    ["shat"]        = "Portal: Shattrath",
+    -- Stormwind
+    ["stormwind"]   = "Portal: Stormwind",
+    ["sw"]          = "Portal: Stormwind",
+    ["storm"]       = "Portal: Stormwind",
+    -- Ironforge
+    ["ironforge"]   = "Portal: Ironforge",
+    ["if"]          = "Portal: Ironforge",
+    ["iron"]        = "Portal: Ironforge",
+    -- Darnassus
+    ["darnassus"]   = "Portal: Darnassus",
+    ["darn"]        = "Portal: Darnassus",
+    -- Exodar
+    ["exodar"]      = "Portal: Exodar",
+    ["exo"]         = "Portal: Exodar",
+    -- Orgrimmar
+    ["orgrimmar"]   = "Portal: Orgrimmar",
+    ["org"]         = "Portal: Orgrimmar",
+    -- Undercity
+    ["undercity"]   = "Portal: Undercity",
+    ["uc"]          = "Portal: Undercity",
+    -- Thunder Bluff
+    ["thunder bluff"] = "Portal: Thunder Bluff",
+    ["tb"]          = "Portal: Thunder Bluff",
+    -- Silvermoon
+    ["silvermoon"]  = "Portal: Silvermoon",
+    ["smc"]         = "Portal: Silvermoon",
+    ["sm"]          = "Portal: Silvermoon",
+    -- Stonard
+    ["stonard"]     = "Portal: Stonard",
+    ["ston"]        = "Portal: Stonard",
+    ["stone"]       = "Portal: Stonard",
+    ["blasted"]     = "Portal: Stonard",
+    ["outland"]     = "Portal: Stonard",
+    ["outlands"]    = "Portal: Stonard",
+    -- Theramore
+    ["theramore"]   = "Portal: Theramore",
+    ["thera"]       = "Portal: Theramore",
+}
+
+function PS:MatchDestinationKeyword(text)
+    local lower = text:lower()
+    -- Try longest matches first
+    local sorted = {}
+    for kw, _ in pairs(self.DESTINATION_KEYWORDS) do
+        table.insert(sorted, kw)
+    end
+    table.sort(sorted, function(a, b) return #a > #b end)
+
+    for _, kw in ipairs(sorted) do
+        local s, e = lower:find(kw, 1, true)
+        if s then
+            -- Word boundary check
+            local before = s > 1 and lower:sub(s - 1, s - 1) or " "
+            local after = e < #lower and lower:sub(e + 1, e + 1) or " "
+            if not before:match("%a") and not after:match("%a") then
+                return self.DESTINATION_KEYWORDS[kw]
+            end
+        end
+    end
+    return nil
+end
+
+------------------------------------------------------------------------
+-- Party Chat Handler: scan for portal destination updates
+------------------------------------------------------------------------
+PS:RegisterEvent("CHAT_MSG_PARTY")
+PS:RegisterEvent("CHAT_MSG_PARTY_LEADER")
+
+function PS:CHAT_MSG_PARTY(text, senderName, ...)
+    PS:HandlePartyChatDestination(text, senderName)
+end
+
+function PS:CHAT_MSG_PARTY_LEADER(text, senderName, ...)
+    PS:HandlePartyChatDestination(text, senderName)
+end
+
+function PS:HandlePartyChatDestination(text, senderName)
+    if not self.db or not self.db.enabled then return end
+
+    local cleanSender = Ambiguate(senderName, "short")
+    local customer = self:GetQueuedCustomer(cleanSender)
+    if not customer then return end
+    if customer.profession ~= "Portals" then return end
+
+    customer.lastActivity = GetTime()
+    local lower = text:lower()
+
+    -- Update destination even if they already have one (they might change their mind)
+    local dest = self:MatchDestinationKeyword(lower)
+    if dest then
+        if customer.portalSpell ~= dest then
+            customer.portalSpell = dest
+            customer.item = dest
+            self:Print(C.CYAN .. customer.name .. C.R .. " updated destination to " .. C.GREEN .. dest .. C.R)
+            self:RefreshEngagementPanel()
+        end
+    end
+end
 ------------------------------------------------------------------------
 PS.tradeGoldBefore = nil
 PS.tradePartner = nil
@@ -321,6 +451,18 @@ function PS:TRADE_SHOW()
     -- Try to get trade partner name
     self.tradePartner = UnitName("NPC") or TradeFrameRecipientNameText and TradeFrameRecipientNameText:GetText() or nil
     self:Debug("Trade opened. Gold: " .. (self.tradeGoldBefore or 0) .. ", Partner: " .. (self.tradePartner or "unknown"))
+
+    -- Also grab class/level from trade partner as backup source
+    if self.tradePartner then
+        local customer = self:GetQueuedCustomer(self.tradePartner)
+        if customer then
+            local _, classFile = UnitClass("NPC")
+            local level = UnitLevel("NPC")
+            if classFile then customer.classFile = classFile end
+            if level and level > 0 then customer.level = level end
+            self:RefreshEngagementPanel()
+        end
+    end
 end
 
 function PS:TRADE_REQUEST_CANCEL()
@@ -387,6 +529,14 @@ function PS:CheckForTip()
                 " from " .. C.WHITE .. (self.tradePartner or "Unknown") .. C.R ..
                 " | Session total: " .. C.GOLD .. self.db.tips.session .. "g" .. C.R)
 
+            -- Mark customer as having traded gold
+            if customer then
+                customer.tradedGold = true
+                customer.lastActivity = GetTime()
+                self.customersServed = (self.customersServed or 0) + 1
+                self:RefreshEngagementPanel()
+            end
+
             -- Auto-whisper thanks for the tip
             if self.tradePartner and self.db.queue.autoThank then
                 local partnerName = self.tradePartner
@@ -406,6 +556,7 @@ end
 ------------------------------------------------------------------------
 PS:RegisterEvent("GROUP_ROSTER_UPDATE")
 PS:RegisterEvent("PARTY_INVITE_REQUEST")
+PS:RegisterEvent("CHAT_MSG_SYSTEM")
 
 function PS:GROUP_ROSTER_UPDATE()
     -- When group composition changes, check if any queued customers joined or left
@@ -418,27 +569,67 @@ function PS:GROUP_ROSTER_UPDATE()
                 customer.state = PS.STATE.WHISPERED
                 customer.lastActivity = GetTime()
                 self:Debug(customer.name .. " joined the group.")
+
+                -- Portal customers: whisper after they join the group
+                if customer.profession == "Portals" then
+                    local custName = customer.name
+                    if customer.portalSpell then
+                        -- They specified a destination — just say we're ready
+                        C_Timer.After(PS.WHISPER_DELAY, function()
+                            local c = PS:GetQueuedCustomer(custName)
+                            if c and not c.tradedGold and c.state ~= PS.STATE.COMPLETED then
+                                PS:WhisperCustomer(custName, "portalReady")
+                            end
+                        end)
+                    else
+                        -- Generic "port" request — ask where they want to go
+                        C_Timer.After(PS.WHISPER_DELAY, function()
+                            local c = PS:GetQueuedCustomer(custName)
+                            if c and not c.tradedGold and c.state ~= PS.STATE.COMPLETED then
+                                PS:WhisperCustomer(custName, "portalAskDest")
+                            end
+                        end)
+                    end
+                end
             end
-        elseif customer.state ~= PS.STATE.COMPLETED and customer.state ~= PS.STATE.DETECTED then
+        elseif customer.state ~= PS.STATE.COMPLETED and customer.state ~= PS.STATE.DETECTED
+                and customer.state ~= PS.STATE.LEFT_GROUP then
             -- Customer was in our group flow - check if they left
             if customer.wasInGroup and not self:IsPlayerInGroup(customer.name) then
-                -- They left the group - send thank you / exit message
-                customer.wasInGroup = false
-                self:WhisperCustomer(customer.name, "thanks", { item = customer.item or "" })
-                self:Print(C.GRAY .. customer.name .. " left the group. Thank-you whispered." .. C.R)
-                customer.state = PS.STATE.COMPLETED
-                -- Remove from queue after a short delay
-                C_Timer.After(3, function()
-                    PS:RemoveFromQueue(customer.name)
-                end)
+                if customer.tradedGold then
+                    -- They paid and left — auto-complete, green row, auto-remove in 5s
+                    customer.wasInGroup = false
+                    customer.state = PS.STATE.COMPLETED
+                    self:Print(C.GREEN .. customer.name .. C.R .. " traded and left. Auto-completed.")
+                    -- Auto-remove after 5 seconds
+                    local custName = customer.name
+                    C_Timer.After(5, function()
+                        PS:RemoveFromQueue(custName)
+                    end)
+                else
+                    -- They left WITHOUT trading gold — mark red for review
+                    customer.wasInGroup = false
+                    self:Print(C.RED .. ">> " .. customer.name .. " LEFT without trading!" .. C.R)
+                    customer.state = PS.STATE.LEFT_GROUP
+                    customer.lastActivity = GetTime()
+                    if self.db.monitor.soundAlert then PlaySound(8959) end
+                end
+                self:RefreshEngagementPanel()
             end
         end
     end
 
-    -- Track who is currently in the group
+    -- Track who is currently in the group + grab class/level from roster
     for _, customer in ipairs(self.queue) do
-        if self:IsPlayerInGroup(customer.name) then
+        local unit = self:GetGroupUnit(customer.name)
+        if unit then
             customer.wasInGroup = true
+            -- Pull class + level directly from the group roster (always re-check)
+            local _, classFile = UnitClass(unit)
+            local level = UnitLevel(unit)
+            if classFile then customer.classFile = classFile end
+            if level and level > 0 then customer.level = level end
+            self:Debug("Roster info for " .. customer.name .. ": class=" .. (classFile or "nil") .. " level=" .. (level or "nil"))
         end
     end
 end
@@ -451,17 +642,87 @@ function PS:PARTY_INVITE_REQUEST(name)
     end
 end
 
+------------------------------------------------------------------------
+-- System Message Handler
+-- Catches "already in a group", "declines your group", "not found" etc.
+------------------------------------------------------------------------
+function PS:CHAT_MSG_SYSTEM(message)
+    if not self.db or not self.db.enabled then return end
+
+    -- "Player is already in a group."
+    -- "Player declines your group invitation."
+    -- "Player not found."
+    -- These follow the pattern: "Playername is already in a group."
+    local name
+
+    -- TBC Classic system messages
+    name = message:match("^(%S+) is already in a group")
+    if name then
+        local customer = self:GetQueuedCustomer(name)
+        if customer then
+            self:Print(C.ORANGE .. name .. C.R .. " is already in a group — removed from queue.")
+            self:RemoveFromQueue(name)
+        end
+        return
+    end
+
+    name = message:match("^(%S+) declines your group")
+    if name then
+        local customer = self:GetQueuedCustomer(name)
+        if customer then
+            self:Print(C.ORANGE .. name .. C.R .. " declined the invite — removed from queue.")
+            self:RemoveFromQueue(name)
+        end
+        return
+    end
+
+    name = message:match("^(%S+) is not online")
+    if not name then
+        name = message:match("^No player named '(%S+)' is currently playing")
+    end
+    if name then
+        local customer = self:GetQueuedCustomer(name)
+        if customer then
+            self:Print(C.ORANGE .. name .. C.R .. " is offline — removed from queue.")
+            self:RemoveFromQueue(name)
+        end
+        return
+    end
+end
+
+------------------------------------------------------------------------
+-- Invite Timeout: auto-remove if customer doesn't join within N seconds
+------------------------------------------------------------------------
+PS.INVITE_TIMEOUT = 5  -- seconds
+
+function PS:StartInviteTimer(playerName)
+    C_Timer.After(self.INVITE_TIMEOUT, function()
+        local customer = self:GetQueuedCustomer(playerName)
+        if customer and customer.state == PS.STATE.INVITED then
+            -- Still INVITED after timeout = never joined
+            if not self:IsPlayerInGroup(playerName) then
+                self:Print(C.ORANGE .. playerName .. C.R .. " didn't join within " .. self.INVITE_TIMEOUT .. "s — removed from queue.")
+                self:RemoveFromQueue(playerName)
+            end
+        end
+    end)
+end
+
 function PS:IsPlayerInGroup(playerName)
+    return self:GetGroupUnit(playerName) ~= nil
+end
+
+function PS:GetGroupUnit(playerName)
     local numMembers = GetNumGroupMembers()
-    if numMembers == 0 then return false end
+    if numMembers == 0 then return nil end
 
     local prefix = IsInRaid() and "raid" or "party"
     for i = 1, numMembers do
         local unit = prefix .. i
         local name = UnitName(unit)
         if name and name == playerName then
-            return true
+            return unit
         end
     end
-    return false
+    return nil
 end

@@ -125,6 +125,7 @@ function PS:CHAT_MSG_WHISPER(text, playerName, ...)
         if existing then
             self:InvitePlayer(cleanSender)
             existing.state = "INVITED"
+            self:StartInviteTimer(cleanSender)
             self:Print(C.GREEN .. cleanSender .. C.R .. " whispered inv — re-invited.")
             self:RefreshEngagementPanel()
             return
@@ -143,8 +144,13 @@ function PS:CHAT_MSG_WHISPER(text, playerName, ...)
                 hasMats = nil,
                 addedTime = GetTime(),
                 lastActivity = GetTime(),
+                level = nil,
+                class = nil,
+                classFile = nil,
             }
             table.insert(self.queue, customer)
+            self:LookupPlayerInfo(cleanSender)
+            self:StartInviteTimer(cleanSender)
             self:RefreshEngagementPanel()
         end
         self:Print(C.GREEN .. cleanSender .. C.R .. " whispered inv — invited.")
@@ -156,9 +162,45 @@ function PS:CHAT_MSG_WHISPER(text, playerName, ...)
 end
 
 ------------------------------------------------------------------------
+-- Turbo keywords: dirt-cheap string.find patterns for instant invite
+-- These fire BEFORE any heavy analysis to beat competing addons
+------------------------------------------------------------------------
+local TURBO_KEYWORDS = {
+    -- Portal keywords
+    { pattern = "port",    profession = "Portals" },
+    { pattern = "portal",  profession = "Portals" },
+    { pattern = "tele",    profession = "Portals" },
+    { pattern = "shatt",   profession = "Portals" },
+    { pattern = "shat ",   profession = "Portals" },
+    { pattern = "stormw",  profession = "Portals" },
+    { pattern = "ironf",   profession = "Portals" },
+    { pattern = "darn",    profession = "Portals" },
+    { pattern = "exodar",  profession = "Portals" },
+    { pattern = "thera",   profession = "Portals" },
+    { pattern = "orgr",    profession = "Portals" },
+    { pattern = "undercity",profession = "Portals" },
+    { pattern = "thunder", profession = "Portals" },
+    { pattern = "silverm", profession = "Portals" },
+    { pattern = "stonard", profession = "Portals" },
+    -- Summon keywords
+    { pattern = "summon",  profession = "Summons" },
+    { pattern = "summ",    profession = "Summons" },
+    -- Lockpicking
+    { pattern = "lockpi",  profession = "Lockpicking" },
+    { pattern = "lockbo",  profession = "Lockpicking" },
+    { pattern = "unlock",  profession = "Lockpicking" },
+    { pattern = "open box",profession = "Lockpicking" },
+    { pattern = "open lock",profession = "Lockpicking" },
+}
+
+-- Quick WTS/selling filter (2 cheap checks to avoid inviting sellers) 
+local TURBO_IGNORE = { "wts", "selling", "offering", "will tip", "my mats" }
+
+------------------------------------------------------------------------
 -- Core Message Processing
 ------------------------------------------------------------------------
 function PS:ProcessChatMessage(text, senderName, source)
+    debugprofilestart()
     -- Don't process our own messages
     local cleanSender = Ambiguate(senderName, "short")
     if cleanSender == self.playerName then return end
@@ -185,6 +227,37 @@ function PS:ProcessChatMessage(text, senderName, source)
     if #self.queue >= self.db.queue.maxSize then
         self:Debug("Queue full, skipping: " .. cleanSender)
         return
+    end
+
+    --------------------------------------------------------------------------
+    -- TURBO FAST-PATH: fire invite for no-mats professions BEFORE any heavy
+    -- analysis. This runs in <0.1ms and beats competing addons.
+    --------------------------------------------------------------------------
+    local turboInvited = false
+    local turboProfession = nil
+    if not self.db.busyMode and source ~= "lfg" then
+        local lowerText = text:lower()
+        -- Quick WTS filter (don't turbo-invite sellers)
+        local isSeller = false
+        for _, ig in ipairs(TURBO_IGNORE) do
+            if lowerText:find(ig, 1, true) then isSeller = true; break end
+        end
+        if not isSeller then
+            for _, tk in ipairs(TURBO_KEYWORDS) do
+                if lowerText:find(tk.pattern, 1, true) then
+                    -- Verify this profession is active and auto-invite enabled
+                    if self:IsProfessionActive(tk.profession)
+                       and self:IsProfessionAutoInvite(tk.profession) then
+                        turboProfession = tk.profession
+                        self:InvitePlayer(cleanSender)
+                        turboInvited = true
+                        local turboMs = debugprofilestop()
+                        self:Debug("TURBO invite " .. cleanSender .. " for " .. tk.profession .. " in " .. format("%.1f", turboMs) .. "ms")
+                    end
+                    break
+                end
+            end
+        end
     end
 
     -- Strip item links for plain text matching, but keep original for display
@@ -232,17 +305,38 @@ function PS:ProcessChatMessage(text, senderName, source)
         return
     end
 
+    -- ULTRA-FAST INVITE: Fire invite the instant we have a confirmed match
+    -- This happens BEFORE HandleNewCustomer to shave off every millisecond
+    -- (may already be done by turbo path above)
+    local profession = matchInfo.profession
+    local proximitySource = (source == "say" or source == "yell" or source == "whisper")
+    local canAutoInvite = self:IsProfessionAutoInvite(profession) and (source ~= "lfg")
+    local noMatsProfession = (profession == "Lockpicking" or profession == "Portals" or profession == "Summons")
+    local ultraInvited = turboInvited
+
+    if not ultraInvited and not self.db.busyMode then
+        if profession == "Portals" then
+            self:InvitePlayer(cleanSender)
+            ultraInvited = true
+        elseif canAutoInvite and (proximitySource or noMatsProfession) then
+            self:InvitePlayer(cleanSender)
+            ultraInvited = true
+        end
+    end
+
+    local totalMs = debugprofilestop()
+
     -- Step 5: We have a match! Process the customer
     self:Debug(C.GREEN .. "MATCH!" .. C.R .. " " .. cleanSender .. " wants: " ..
         (matchInfo.item or matchInfo.profession) .. " [" .. matchInfo.matchType .. "]")
 
-    self:HandleNewCustomer(cleanSender, matchInfo, text, source)
+    self:HandleNewCustomer(cleanSender, matchInfo, text, source, ultraInvited, totalMs)
 end
 
 ------------------------------------------------------------------------
 -- Handle New Customer Detection
 ------------------------------------------------------------------------
-function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
+function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source, ultraInvited, processingMs)
     -- Mark as contacted to prevent spam
     self:MarkContacted(playerName)
 
@@ -251,10 +345,30 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
     local profession = matchInfo.profession
     local isGeneric = matchInfo.matchType == "profession"
 
+    -- Determine invite eligibility EARLY so we can fire invite ASAP
+    local proximitySource = (source == "say" or source == "yell" or source == "whisper")
+    local canAutoInvite = self:IsProfessionAutoInvite(profession) and (source ~= "lfg")
+    local noMatsProfession = (profession == "Lockpicking" or profession == "Portals" or profession == "Summons")
+
+    -- earlyInvited = already invited in ProcessChatMessage ultra-fast path
+    local earlyInvited = ultraInvited or false
+
+    -- Fallback invite for paths not covered by ultra-fast (e.g. trade/general auto-invite)
+    if not earlyInvited and not self.db.busyMode and canAutoInvite then
+        if proximitySource or noMatsProfession then
+            self:InvitePlayer(playerName)
+            earlyInvited = true
+        end
+    end
+
     -- Alert the player
+    local timingStr = ""
+    if processingMs then
+        timingStr = "  |cff888888[" .. format("%.1f", processingMs) .. "ms]|r"
+    end
     local alertMsg = C.GOLD .. ">> " .. C.GREEN .. playerName .. C.R ..
         " is looking for " .. C.CYAN .. displayItem .. C.R ..
-        " (" .. C.PURPLE .. profession .. C.R .. ")"
+        " (" .. C.PURPLE .. profession .. C.R .. ")" .. timingStr
     self:Print(alertMsg)
 
     -- Play sound alert
@@ -273,8 +387,20 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
         hasMats = nil,
         addedTime = GetTime(),
         lastActivity = GetTime(),
+        level = nil,
+        class = nil,
+        classFile = nil,
     }
+
+    -- For portal customers, store the requested portal spell
+    if profession == "Portals" and matchInfo.item then
+        customer.portalSpell = matchInfo.item  -- e.g. "Portal: Orgrimmar"
+    end
+
     table.insert(self.queue, customer)
+
+    -- Fire a /who to get class + level for the queue display
+    self:LookupPlayerInfo(playerName)
 
     -- Update customer history
     self:UpdateCustomerHistory(playerName)
@@ -292,52 +418,57 @@ function PS:HandleNewCustomer(playerName, matchInfo, originalMessage, source)
     if self.db.busyMode then
         self:WhisperCustomer(playerName, "busy", { item = displayItem })
         customer.state = "BUSY_NOTIFIED"
+    elseif profession == "Portals" then
+        -- Portal flow: already invited above, whisper deferred until group join
+        customer.state = "INVITED"
+        self:StartInviteTimer(playerName)
+        self:Debug("Portal customer " .. playerName .. " invited (whisper deferred until group join)")
     else
         -- Whisper greeting (always, regardless of zone)
         if isGeneric then
             C_Timer.After(PS.WHISPER_DELAY, function()
-                PS:WhisperCustomer(playerName, "greeting", { item = profession })
                 local cust = PS:GetQueuedCustomer(playerName)
-                if cust then
-                    cust.state = "WHISPERED"
-                    cust.lastActivity = GetTime()
-                end
+                if not cust or cust.tradedGold or cust.state == "COMPLETED" then return end
+                PS:WhisperCustomer(playerName, "greeting", { item = profession })
+                cust.state = "WHISPERED"
+                cust.lastActivity = GetTime()
             end)
         else
             if self.db.monitor.autoWhisper then
                 C_Timer.After(PS.WHISPER_DELAY, function()
+                    local cust = PS:GetQueuedCustomer(playerName)
+                    if not cust or cust.tradedGold or cust.state == "COMPLETED" then return end
                     PS:WhisperCustomer(playerName, "greeting", { item = displayItem })
                     if not noMatsProfession then
                         C_Timer.After(2, function()
+                            local cust2 = PS:GetQueuedCustomer(playerName)
+                            if not cust2 or cust2.tradedGold or cust2.state == "COMPLETED" then return end
                             PS:WhisperCustomer(playerName, "askMats", { item = displayItem })
-                            local cust = PS:GetQueuedCustomer(playerName)
-                            if cust then
-                                cust.state = "WHISPERED"
-                                cust.lastActivity = GetTime()
-                            end
+                            cust2.state = "WHISPERED"
+                            cust2.lastActivity = GetTime()
                         end)
                     else
-                        local cust = PS:GetQueuedCustomer(playerName)
-                        if cust then
-                            cust.state = "WHISPERED"
-                            cust.lastActivity = GetTime()
-                        end
+                        cust.state = "WHISPERED"
+                        cust.lastActivity = GetTime()
                     end
                 end)
             end
         end
 
-        -- Auto-invite: lockpicking/portals/summons always invite immediately, others do zone check
-        if canAutoInvite then
+        -- Auto-invite logic (non-portal) — skip if already invited in fast path
+        if not earlyInvited and canAutoInvite then
             if proximitySource or noMatsProfession then
-                -- Proximity or no-mats services: invite immediately
                 self:InvitePlayer(playerName)
                 customer.state = "INVITED"
+                self:StartInviteTimer(playerName)
                 self:Debug("Invited " .. playerName .. " (" .. (noMatsProfession and "no-mats service" or "proximity") .. ")")
             else
                 -- Trade/General chat: verify same zone via /who before inviting
                 self:ZoneCheckAndInvite(playerName)
             end
+        elseif earlyInvited then
+            customer.state = "INVITED"
+            self:StartInviteTimer(playerName)
         end
     end
 
@@ -356,11 +487,25 @@ function PS:ZoneCheckAndInvite(playerName)
 
     -- Suppress the /who results from showing in chat
     if SetWhoToUI then
-        SetWhoToUI(true)
+        pcall(SetWhoToUI, true)
     end
 
-    -- Send /who query for this specific player
-    SendWho("n-\"" .. playerName .. "\"")
+    -- Send /who query for this specific player (protected in Anniversary Classic)
+    local query = "n-\"" .. playerName .. "\""
+    local ok = false
+    if C_FriendList and C_FriendList.SendWho then
+        ok = pcall(C_FriendList.SendWho, query)
+    end
+    if not ok and SendWho then
+        ok = pcall(SendWho, query)
+    end
+    if not ok then
+        -- /who blocked, skip zone check and just invite directly
+        self.pendingInvites[playerName] = nil
+        self:InvitePlayer(playerName)
+        self:Debug("SendWho blocked, inviting " .. playerName .. " without zone check")
+        return
+    end
     self:Debug("Sent /who for zone check: " .. playerName)
 
     -- Timeout: if we don't get a response in 5 seconds, skip the invite
@@ -373,7 +518,9 @@ function PS:ZoneCheckAndInvite(playerName)
 end
 
 function PS:WHO_LIST_UPDATE()
-    if not next(self.pendingInvites) then return end
+    local hasPending = next(self.pendingInvites)
+    local hasLookups = self._pendingLookups and next(self._pendingLookups)
+    if not hasPending and not hasLookups then return end
 
     local myZone = GetRealZoneText()
     local numResults = C_FriendList and C_FriendList.GetNumWhoResults and C_FriendList.GetNumWhoResults()
@@ -385,14 +532,27 @@ function PS:WHO_LIST_UPDATE()
         if C_FriendList and C_FriendList.GetWhoInfo then
             info = C_FriendList.GetWhoInfo(i)
         elseif GetWhoInfo then
-            local name, guild, level, race, class, zone = GetWhoInfo(i)
-            info = { fullName = name, area = zone }
+            local name, guild, level, race, class, zone, classFile = GetWhoInfo(i)
+            info = { fullName = name, area = zone, level = level, classStr = class, filename = classFile }
         end
 
         if info then
             local whoName = info.fullName or ""
             -- Strip realm name if present
             local shortName = Ambiguate(whoName, "short")
+
+            -- Always store class/level on any queued customer we see in /who
+            local cust = self:GetQueuedCustomer(shortName)
+            if cust then
+                if info.level and info.level > 0 then cust.level = info.level end
+                if info.filename then cust.classFile = info.filename end
+                if info.classStr then cust.class = info.classStr end
+            end
+
+            -- Clear lookup flag for this player
+            if self._pendingLookups then
+                self._pendingLookups[shortName] = nil
+            end
 
             if self.pendingInvites[shortName] then
                 local whoZone = info.area or ""
@@ -426,6 +586,31 @@ end
 function PS:SendGreeting(playerName, displayItem)
     -- Legacy helper - used by manual interactions
     self:WhisperCustomer(playerName, "greeting", { item = displayItem })
+end
+
+------------------------------------------------------------------------
+-- Lookup player class + level via /who
+------------------------------------------------------------------------
+function PS:LookupPlayerInfo(playerName)
+    -- Try to get class/level via /who — optional, group roster is primary source
+    -- SendWho is protected in Anniversary Classic; pcall to avoid ADDON_ACTION_BLOCKED
+    if not self._pendingLookups then self._pendingLookups = {} end
+    self._pendingLookups[playerName] = true
+    if SetWhoToUI then pcall(SetWhoToUI, true) end
+    local query = 'n-"' .. playerName .. '"'
+    local ok = false
+    if C_FriendList and C_FriendList.SendWho then
+        ok = pcall(C_FriendList.SendWho, query)
+    end
+    if not ok and SendWho then
+        ok = pcall(SendWho, query)
+    end
+    if not ok then
+        self:Debug("SendWho blocked (protected) for " .. playerName)
+    end
+    C_Timer.After(5, function()
+        if PS._pendingLookups then PS._pendingLookups[playerName] = nil end
+    end)
 end
 
 function PS:WhisperCustomer(playerName, templateKey, replacements)

@@ -13,14 +13,14 @@ local C = PS.C
 ------------------------------------------------------------------------
 PS.STATIC_AD_TEMPLATES = {
     ["Portals"] = {
-        "[Pro Shop] Mage portals available! Shattrath, all capital cities. In {zone}. Tips appreciated! PST!",
-        "[Pro Shop] Portals open! Shatt, SW, IF, Org, UC & more. In {zone}. Tips welcome! PST!",
-        "[Pro Shop] Need a portal? Mage LFW! All TBC destinations available. In {zone}. PST!",
+        "WTS Portals — Shattrath, all capital cities + max level food & water! In {zone}. PST!",
+        "WTS Portals! Shatt, SW, IF, Org, UC & more. Max level food & water available! In {zone}. PST!",
+        "WTS Mage Portals — all TBC destinations. Max level food & water! In {zone}. PST!",
     },
     ["Summons"] = {
-        "[Pro Shop] Warlock available for summons! Need 2 clickers at destination. In {zone}. Tips appreciated! PST!",
-        "[Pro Shop] Summon service! Get where you need to be fast. Need 2 helpers at location. In {zone}. PST!",
-        "[Pro Shop] Need a summon? Warlock LFW! 2 people needed at destination. In {zone}. Tips welcome! PST!",
+        "WTS Summons! Need 2 clickers at destination. In {zone}. Tips appreciated! PST!",
+        "Summon service! Get where you need to be fast. Need 2 helpers at location. In {zone}. PST!",
+        "Need a summon? Warlock LFW! 2 people needed at destination. In {zone}. Tips welcome! PST!",
     },
 }
 
@@ -54,12 +54,12 @@ function PS:BuildLockpickingAd()
     end
 
     if #canOpen == 0 then
-        return "[Pro Shop] Rogue lockpicking (" .. skill .. ") LFW! In {zone}. Tips welcome! PST!"
+        return "Rogue lockpicking (" .. skill .. ") LFW! In {zone}. Tips welcome! PST!"
     end
 
     -- Max lockpicking (350): advertise that we can open ALL lockboxes
     if skill >= 350 then
-        return "[Pro Shop] Rogue lockpicking (MAX) LFW! Can open ALL lockboxes. In {zone}. Tips welcome! PST!"
+        return "Rogue lockpicking (MAX) LFW! Can open ALL lockboxes. In {zone}. Tips welcome! PST!"
     end
 
     -- Build a list of the top boxes we can open (up to 4 for brevity)
@@ -71,7 +71,7 @@ function PS:BuildLockpickingAd()
     local boxList = table.concat(displayBoxes, ", ")
     local suffix = #canOpen > #displayBoxes and " & more" or ""
 
-    return "[Pro Shop] Rogue lockpicking (" .. skill .. ") LFW! " .. boxList .. suffix .. " lockboxes. In {zone}. Tips welcome! PST!"
+    return "Rogue lockpicking (" .. skill .. ") LFW! " .. boxList .. suffix .. " lockboxes. In {zone}. Tips welcome! PST!"
 end
 
 ------------------------------------------------------------------------
@@ -86,9 +86,9 @@ function PS:BuildProfessionAd(profession)
     local recipeCount = profData.numRecipes or 0
 
     if recipeCount > 0 then
-        return "[Pro Shop] " .. profession .. " (" .. skillLevel .. ") LFW! " .. recipeCount .. " recipes, your mats. In {zone}. Tips welcome! PST!"
+        return profession .. " (" .. skillLevel .. ") LFW! " .. recipeCount .. " recipes, your mats. In {zone}. Tips welcome! PST!"
     else
-        return "[Pro Shop] " .. profession .. " (" .. skillLevel .. ") LFW! In {zone}. PST with what you need!"
+        return profession .. " (" .. skillLevel .. ") LFW! In {zone}. PST with what you need!"
     end
 end
 

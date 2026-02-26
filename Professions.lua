@@ -157,8 +157,14 @@ end
 -- Re-scan when skills change (learning new profession, leveling up)
 function PS:SKILL_LINES_CHANGED()
     if not self.initialized then return end
-    local oldCount = 0
-    for _ in pairs(self.professions) do oldCount = oldCount + 1 end
+
+    -- Preserve class services (Portals, Summons, Lockpicking) before rebuilding
+    local classServices = {}
+    for name, data in pairs(self.professions) do
+        if data.isClassService then
+            classServices[name] = data
+        end
+    end
 
     -- Re-run skill scan
     local found = {}
@@ -176,6 +182,13 @@ function PS:SKILL_LINES_CHANGED()
     end
     if next(found) then
         self.professions = found
+    end
+
+    -- Restore class services
+    for name, data in pairs(classServices) do
+        if not self.professions[name] then
+            self.professions[name] = data
+        end
     end
 end
 
@@ -250,104 +263,37 @@ function PS:ScanTradeSkill()
 end
 
 ------------------------------------------------------------------------
--- Deep Scan: Automatically open each profession window to scan recipes
--- Sequences through each detected craft/trade skill window
+-- Deep Scan: User-guided recipe scanning
+-- Recipes are automatically scanned when you open each profession window.
+-- This function just tells you which professions still need scanning.
 ------------------------------------------------------------------------
-PS.deepScanQueue = {}
-PS.deepScanActive = false
-PS.deepScanAutoClose = false
-
--- Professions that use CastSpellByName to open their trade skill window
-local CASTABLE_PROFESSIONS = {
-    ["Alchemy"] = "Alchemy",
-    ["Blacksmithing"] = "Blacksmithing",
-    ["Cooking"] = "Cooking",
-    ["Enchanting"] = "Enchanting",
-    ["Engineering"] = "Engineering",
-    ["First Aid"] = "First Aid",
-    ["Jewelcrafting"] = "Jewelcrafting",
-    ["Leatherworking"] = "Leatherworking",
-    ["Tailoring"] = "Tailoring",
+local SCANNABLE_PROFESSIONS = {
+    ["Alchemy"] = true, ["Blacksmithing"] = true, ["Cooking"] = true,
+    ["Enchanting"] = true, ["Engineering"] = true, ["First Aid"] = true,
+    ["Jewelcrafting"] = true, ["Leatherworking"] = true, ["Tailoring"] = true,
 }
 
 function PS:DeepScanProfessions()
-    if self.deepScanActive then
-        self:Print(C.ORANGE .. "Deep scan already in progress..." .. C.R)
-        return
-    end
-
-    if InCombatLockdown() then
-        self:Print(C.RED .. "Can't scan professions while in combat." .. C.R)
-        return
-    end
-
-    -- Build list of professions to scan
-    self.deepScanQueue = {}
-    for name, _ in pairs(self.professions) do
-        if CASTABLE_PROFESSIONS[name] then
-            table.insert(self.deepScanQueue, name)
+    -- List which professions need scanning
+    local needScan = {}
+    for name, data in pairs(self.professions) do
+        if SCANNABLE_PROFESSIONS[name] and (data.numRecipes or 0) == 0 then
+            table.insert(needScan, name)
         end
     end
 
-    if #self.deepScanQueue == 0 then
-        self:Print(C.RED .. "No scannable professions found." .. C.R)
-        return
-    end
-
-    self.deepScanActive = true
-    self:Print(C.CYAN .. "Deep scanning " .. #self.deepScanQueue .. " professions..." .. C.R)
-    self:DeepScanNext()
-end
-
-function PS:DeepScanNext()
-    if #self.deepScanQueue == 0 then
-        -- Done scanning all professions
-        self.deepScanActive = false
-        -- Close the window if we opened it
-        if self.deepScanAutoClose then
-            CloseTradeSkill()
-            self.deepScanAutoClose = false
-        end
-
-        -- Count total recipes
+    if #needScan == 0 then
         local total = 0
         for _, data in pairs(self.professions) do
             total = total + (data.numRecipes or 0)
         end
-        self:Print(C.GREEN .. "Deep scan complete! " .. C.R .. C.WHITE .. total .. " total recipes cached." .. C.R)
-        return
-    end
-
-    local profName = table.remove(self.deepScanQueue, 1)
-    local spellName = CASTABLE_PROFESSIONS[profName]
-
-    self:Debug("Deep scanning: " .. profName)
-
-    -- Close any currently open trade skill window first
-    CloseTradeSkill()
-
-    -- Wait a moment then open the profession
-    C_Timer.After(0.3, function()
-        if InCombatLockdown() then
-            PS:Print(C.RED .. "Combat detected, aborting scan." .. C.R)
-            PS.deepScanActive = false
-            PS.deepScanQueue = {}
-            return
+        self:Print(C.GREEN .. "All professions scanned! " .. C.R .. C.WHITE .. total .. " total recipes cached." .. C.R)
+    else
+        self:Print(C.CYAN .. "Open each profession window to scan recipes:" .. C.R)
+        for _, name in ipairs(needScan) do
+            self:Print("  " .. C.YELLOW .. name .. C.R .. " — not yet scanned")
         end
-
-        PS.deepScanAutoClose = true
-        CastSpellByName(spellName)
-
-        -- Wait for TRADE_SKILL_SHOW to fire and scan, then continue
-        C_Timer.After(1.0, function()
-            -- ScanTradeSkill should have already fired via TRADE_SKILL_SHOW
-            -- Now move to the next profession
-            CloseTradeSkill()
-            C_Timer.After(0.3, function()
-                PS:DeepScanNext()
-            end)
-        end)
-    end)
+    end
 end
 
 ------------------------------------------------------------------------
@@ -511,4 +457,81 @@ function PS:GetProfessionSummary()
     return summary
 end
 
+------------------------------------------------------------------------
+-- Portal Management: Track active portals and provide cast helpers
+------------------------------------------------------------------------
+-- All portal spells a mage can cast (spell name = item name from Database)
+PS.PORTAL_SPELLS = {
+    ["Portal: Shattrath"]     = true,
+    ["Portal: Stormwind"]     = true,
+    ["Portal: Ironforge"]     = true,
+    ["Portal: Darnassus"]     = true,
+    ["Portal: Exodar"]        = true,
+    ["Portal: Orgrimmar"]     = true,
+    ["Portal: Undercity"]     = true,
+    ["Portal: Thunder Bluff"] = true,
+    ["Portal: Silvermoon"]    = true,
+    ["Portal: Stonard"]       = true,
+    ["Portal: Theramore"]     = true,
+}
 
+-- Active portal state: portalSpell -> castTimestamp
+PS.activePortals = {}
+
+-- Portal duration (60s in TBC) minus safety buffer (30s) = 30s active window
+PS.PORTAL_DURATION   = 60
+PS.PORTAL_BUFFER     = 30
+PS.PORTAL_ACTIVE_WIN = PS.PORTAL_DURATION - PS.PORTAL_BUFFER  -- 30 seconds
+
+--- Check if a specific portal is still active (within the safe window)
+function PS:IsPortalActive(portalSpell)
+    local castTime = self.activePortals[portalSpell]
+    if not castTime then return false end
+    return (GetTime() - castTime) < self.PORTAL_ACTIVE_WIN
+end
+
+--- How many seconds remain in the safe active window
+function PS:GetPortalTimeRemaining(portalSpell)
+    local castTime = self.activePortals[portalSpell]
+    if not castTime then return 0 end
+    local remaining = self.PORTAL_ACTIVE_WIN - (GetTime() - castTime)
+    return math.max(0, remaining)
+end
+
+--- Called by UNIT_SPELLCAST_SUCCEEDED to record portal casts
+function PS:OnPortalCast(portalSpell)
+    self.activePortals[portalSpell] = GetTime()
+    self:Print(C.PURPLE .. "Portal cast: " .. C.CYAN .. portalSpell .. C.R ..
+        " \226\128\148 active for " .. self.PORTAL_ACTIVE_WIN .. "s")
+
+    -- Auto-invite any queued customers waiting for this portal
+    for _, customer in ipairs(self.queue) do
+        if customer.portalSpell == portalSpell
+        and customer.state ~= "INVITED"
+        and customer.state ~= "IN_PROGRESS"
+        and customer.state ~= "COMPLETED" then
+            self:InvitePlayer(customer.name)
+            customer.state = "INVITED"
+            self:Print(C.GREEN .. customer.name .. C.R .. " auto-invited (portal is up)")
+        end
+    end
+
+    self:RefreshEngagementPanel()
+
+    -- Refresh mage portal bars in dashboard
+    self:RefreshMagePortalBars()
+
+    -- Auto-refresh when portal expires so UI updates (Cast button reappears)
+    C_Timer.After(self.PORTAL_ACTIVE_WIN + 1, function()
+        PS:RefreshEngagementPanel()
+    end)
+end
+
+--- Event handler for UNIT_SPELLCAST_SUCCEEDED
+function PS:UNIT_SPELLCAST_SUCCEEDED(unit, castGUID, spellID)
+    if unit ~= "player" then return end
+    local spellName = GetSpellInfo(spellID)
+    if spellName and self.PORTAL_SPELLS[spellName] then
+        self:OnPortalCast(spellName)
+    end
+end

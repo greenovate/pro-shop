@@ -33,6 +33,21 @@ PS.QUEUE_CLEANUP_INTERVAL = 30
 -- Invite Helper (API varies by client version)
 ------------------------------------------------------------------------
 function PS:InvitePlayer(name)
+    -- Skip if they're already in our group
+    if self:IsPlayerInGroup(name) then
+        self:Debug(name .. " is already in group, skipping invite.")
+        return
+    end
+
+    -- Auto-convert party to raid at 4 members so we don't cap at 5
+    local numMembers = GetNumGroupMembers()
+    if numMembers >= 4 and not IsInRaid() and IsInGroup() then
+        if UnitIsGroupLeader("player") then
+            ConvertToRaid()
+            self:Print(self.C.YELLOW .. "Auto-converted to raid (party was full)." .. self.C.R)
+        end
+    end
+
     if C_PartyInfo and C_PartyInfo.InviteUnit then
         C_PartyInfo.InviteUnit(name)
         self:Debug("InvitePlayer via C_PartyInfo.InviteUnit: " .. name)
@@ -107,16 +122,19 @@ PS.DEFAULTS = {
     },
 
     whispers = {
-        greeting   = "Hey! I saw you're looking for {item}. I can help with that! I'm in {zone}.",
-        askMats    = "Do you have the mats, or do you need me to provide them?",
-        thanks     = "Thank you for choosing {player}'s Pro-Shop! Have a great day!",
-        busy       = "Hey! I can do that but I'm a bit busy right now. I'll get to you shortly!",
-        queued     = "You're #{position} in my queue. Sit tight!",
+        greeting     = "Hey! I saw you're looking for {item}. I can help with that! I'm in {zone}.",
+        askMats      = "Do you have the mats, or do you need me to provide them?",
+        thanks       = "Thank you for choosing {player}'s Pro-Shop! Have a great day!",
+        busy         = "Hey! I can do that but I'm a bit busy right now. I'll get to you shortly!",
+        queued       = "You're #{position} in my queue. Sit tight!",
+        portalAskDest = "Hey! Where do you need a portal to?",
+        portalReady   = "I'm ready! Open trade whenever you are.",
     },
 
     autoInviteByProfession = {},  -- profession -> true/false override (default: follow global)
 
     busyMode = false,
+    mageCollapsed = { portals = true, food = true, water = true },   -- collapse state for mage dashboard sections
     blacklist = {},      -- name (capitalized) -> true
 
     tips = {
@@ -340,6 +358,14 @@ function PS:Initialize()
     -- Refresh the quick ad bar now that professions are loaded
     self:RefreshAdBar()
 
+    -- Register portal tracking event (mage portals)
+    local _, playerClass = UnitClass("player")
+    if playerClass == "MAGE" then
+        self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        -- Create mage sections in the dashboard (spellbook is loaded by now)
+        self:CreateMageSections()
+    end
+
     -- Queue cleanup timer
     C_Timer.NewTicker(self.QUEUE_CLEANUP_INTERVAL, function()
         PS:CleanupQueue()
@@ -350,13 +376,10 @@ function PS:Initialize()
     self.sessionStartEpoch = time()
     self:Print(C.GOLD .. "v" .. self.VERSION .. C.R .. " loaded! Type " .. C.GREEN .. "/ps" .. C.R .. " for commands.")
 
-    -- Auto deep-scan if we have no cached recipes yet
+    -- Prompt user to open profession windows for recipe scanning
     if not next(self.knownRecipes) then
         C_Timer.After(2, function()
-            if not InCombatLockdown() then
-                PS:Print(C.CYAN .. "First run - auto-scanning recipes..." .. C.R)
-                PS:DeepScanProfessions()
-            end
+            PS:Print(C.CYAN .. "Open each profession window to scan recipes. They'll be cached automatically." .. C.R)
         end)
     end
 end

@@ -12,4 +12,5 @@ Professions.lua
 Monitor.lua
 Advertise.lua
 Queue.lua
+MageHub.lua
 UI.lua
