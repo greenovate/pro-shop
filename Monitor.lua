@@ -565,10 +565,6 @@ function PS:LookupPlayerInfo(playerName)
     -- even through pcall). Class/level is obtained from group roster and trade window instead.
     self:Debug("LookupPlayerInfo: skipping /who (protected), will get info from group roster")
 end
-    C_Timer.After(5, function()
-        if PS._pendingLookups then PS._pendingLookups[playerName] = nil end
-    end)
-end
 
 function PS:WhisperCustomer(playerName, templateKey, replacements)
     local template = self.db.whispers[templateKey]
